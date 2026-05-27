@@ -5,7 +5,8 @@
 const CONFIG = {
   SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbyCfyQdUj9saS8hBrVoiPM4Se-ywCQze1N4mT_aYNqkDokcyiZ8FDrfodiXGWuhUUVp/exec',
   LOGIN_PASSWORD: 'BLP123',
-  STORAGE_KEY: 'stockOpnameUser'
+  STORAGE_KEY: 'stockOpnameUser',
+  LOGOUT_KEY: 'stockOpnameLoggedOut'
 };
 
 let state = {
@@ -92,6 +93,11 @@ async function getSavedUser() {
   var user = null;
   var source = 'none';
 
+  if (isLoggedOut()) {
+    console.log('[App] Saved user ignored: logout marker active');
+    return null;
+  }
+
   try {
     user = localStorage.getItem(CONFIG.STORAGE_KEY);
     if (user) source = 'localStorage';
@@ -128,6 +134,8 @@ async function getSavedUser() {
 }
 
 async function saveUser(username) {
+  clearLogoutMarker();
+
   try {
     localStorage.setItem(CONFIG.STORAGE_KEY, username);
   } catch (error) {
@@ -149,6 +157,8 @@ async function saveUser(username) {
 }
 
 async function clearSavedUser() {
+  setLogoutMarker();
+
   try {
     localStorage.removeItem(CONFIG.STORAGE_KEY);
   } catch (error) {
@@ -162,6 +172,27 @@ async function clearSavedUser() {
   }
 
   deleteCookie(CONFIG.STORAGE_KEY);
+}
+
+function setLogoutMarker() {
+  try {
+    localStorage.setItem(CONFIG.LOGOUT_KEY, '1');
+  } catch (error) {}
+  setCookie(CONFIG.LOGOUT_KEY, '1', 365);
+}
+
+function clearLogoutMarker() {
+  try {
+    localStorage.removeItem(CONFIG.LOGOUT_KEY);
+  } catch (error) {}
+  deleteCookie(CONFIG.LOGOUT_KEY);
+}
+
+function isLoggedOut() {
+  try {
+    if (localStorage.getItem(CONFIG.LOGOUT_KEY) === '1') return true;
+  } catch (error) {}
+  return getCookie(CONFIG.LOGOUT_KEY) === '1';
 }
 
 function setCookie(name, value, days) {
