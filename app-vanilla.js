@@ -89,9 +89,11 @@ async function logout() {
 
 async function getSavedUser() {
   var user = null;
+  var source = 'none';
 
   try {
     user = localStorage.getItem(CONFIG.STORAGE_KEY);
+    if (user) source = 'localStorage';
   } catch (error) {
     console.warn('[App] localStorage read failed:', error);
   }
@@ -99,7 +101,10 @@ async function getSavedUser() {
   if (!user) {
     try {
       user = await dbGetSetting(CONFIG.STORAGE_KEY);
-      if (user) localStorage.setItem(CONFIG.STORAGE_KEY, user);
+      if (user) {
+        source = 'indexedDB';
+        localStorage.setItem(CONFIG.STORAGE_KEY, user);
+      }
     } catch (error) {
       console.warn('[App] IndexedDB user read failed:', error);
     }
@@ -107,9 +112,13 @@ async function getSavedUser() {
 
   if (!user) {
     user = getCookie(CONFIG.STORAGE_KEY);
-    if (user) await saveUser(user);
+    if (user) {
+      source = 'cookie';
+      await saveUser(user);
+    }
   }
 
+  console.log('[App] Saved user source:', source);
   return user;
 }
 
@@ -127,6 +136,7 @@ async function saveUser(username) {
   }
 
   setCookie(CONFIG.STORAGE_KEY, username, 365);
+  console.log('[App] Login saved:', await getLoginStorageStatus());
 }
 
 async function clearSavedUser() {
@@ -172,6 +182,24 @@ function requestStoragePersistence() {
   }).catch(function(error) {
     console.warn('[App] Persistent storage request failed:', error);
   });
+}
+
+async function getLoginStorageStatus() {
+  var local = false;
+  var indexed = false;
+  var cookie = false;
+
+  try {
+    local = localStorage.getItem(CONFIG.STORAGE_KEY) ? true : false;
+  } catch (error) {}
+
+  try {
+    indexed = (await dbGetSetting(CONFIG.STORAGE_KEY)) ? true : false;
+  } catch (error) {}
+
+  cookie = getCookie(CONFIG.STORAGE_KEY) ? true : false;
+
+  return { localStorage: local, indexedDB: indexed, cookie: cookie };
 }
 
 function updateUserDisplay() {
