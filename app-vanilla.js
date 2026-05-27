@@ -181,8 +181,20 @@ function setupEventListeners() {
   // Calculator - Qty inputs
   var inputQty = document.getElementById('inputQty');
   var cycleQty = document.getElementById('cycleQty');
+  var editQty = document.getElementById('editQty');
   if (inputQty) inputQty.addEventListener('blur', handleQtyCalculation);
   if (cycleQty) cycleQty.addEventListener('blur', handleQtyCalculation);
+  if (editQty) editQty.addEventListener('blur', handleQtyCalculation);
+  [inputQty, cycleQty, editQty].forEach(function(input) {
+    if (!input) return;
+    input.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        calculateQtyInput(input, true);
+        input.blur();
+      }
+    });
+  });
 
   // Create Batch Form
   var batchForm = document.getElementById('createBatchForm');
@@ -308,12 +320,12 @@ async function handleSaveProductIn(e) {
     sku: document.getElementById('inputSKU').value,
     product: document.getElementById('inputProduct').value,
     batch: document.getElementById('inputBatch').value,
-    qty: parseInt(document.getElementById('inputQty').value.replace(/[^\d]/g, '')) || 0,
+    qty: calculateQtyInput(document.getElementById('inputQty'), true) || 0,
     status: 'Pending',
     date: globalSelectedDate || getGlobalDate()
   };
 
-  if (!record.barcode || !record.qty) {
+  if (!record.barcode || record.qty <= 0) {
     showToast('Pilih produk dan isi Qty', 'error');
     return;
   }
@@ -438,7 +450,7 @@ function cancelEditProductIn() {
 async function saveEditHistory(e) {
   e.preventDefault();
 
-  const qty = parseInt(document.getElementById('editQty').value.replace(/[^\d]/g, '')) || 0;
+  const qty = calculateQtyInput(document.getElementById('editQty'), true) || 0;
   if (!qty || qty <= 0) {
     showToast('Qty harus lebih dari 0', 'error');
     return;
@@ -524,11 +536,11 @@ async function handleSaveCycleCount(e) {
     sku: document.getElementById('cycleSKU').value,
     product: document.getElementById('cycleProduct').value,
     batch: document.getElementById('cycleBatch').value,
-    qty: parseInt(document.getElementById('cycleQty').value.replace(/[^\d]/g, '')) || 0,
+    qty: calculateQtyInput(document.getElementById('cycleQty'), true) || 0,
     date: globalSelectedDate || getGlobalDate()
   };
 
-  if (!record.barcode || !record.qty) {
+  if (!record.barcode || record.qty <= 0) {
     showToast('Pilih produk dan isi Qty', 'error');
     return;
   }
@@ -1325,29 +1337,55 @@ async function handleCreateBatch(e) {
 // ============================================
 
 function handleQtyCalculation(e) {
-  const input = e.target;
-  const value = input.value.trim();
-  if (!value) return;
-  if (/^\d+$/.test(value)) return;
+  calculateQtyInput(e.target, true);
+}
 
-  if (/[+\-*\/x×÷]/.test(value)) {
-    try {
-      let expr = value.replace(/x|×/gi, '*').replace(/÷/g, '/');
-      if (!/^[\d+\-*\/.\s()]+$/.test(expr)) {
-        showToast('Format tidak valid', 'error');
-        return;
-      }
-      const result = new Function('return ' + expr)();
-      if (result !== null && !isNaN(result) && isFinite(result)) {
-        const final = Math.round(result);
-        input.value = final;
-        showToast(value + ' = ' + final, 'success');
-      } else {
-        showToast('Perhitungan tidak valid', 'error');
-      }
-    } catch (err) {
-      showToast('Error: ' + err.message, 'error');
-    }
+function calculateQtyInput(input, showResult) {
+  if (!input) return 0;
+
+  const value = input.value.trim();
+  if (!value) return 0;
+
+  const parsed = parseQtyValue(value);
+  if (parsed === null) {
+    showToast('Format perhitungan tidak valid', 'error');
+    return 0;
+  }
+
+  if (parsed.expression) {
+    input.value = parsed.qty;
+    if (showResult) showToast(value + ' = ' + parsed.qty, 'success');
+  }
+
+  return parsed.qty;
+}
+
+function parseQtyValue(value) {
+  const raw = value.trim();
+  if (!raw) return { qty: 0, expression: false };
+
+  if (/^\d+$/.test(raw)) {
+    return { qty: parseInt(raw, 10) || 0, expression: false };
+  }
+
+  if (!/[+\-*\/x×÷]/.test(raw)) {
+    return null;
+  }
+
+  try {
+    const expr = raw
+      .replace(/x|×/gi, '*')
+      .replace(/÷/g, '/')
+      .replace(/,/g, '.');
+
+    if (!/^[\d+\-*\/.\s()]+$/.test(expr)) return null;
+
+    const result = new Function('return (' + expr + ')')();
+    if (result === null || isNaN(result) || !isFinite(result)) return null;
+
+    return { qty: Math.round(result), expression: true };
+  } catch (err) {
+    return null;
   }
 }
 
