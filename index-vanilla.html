@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#2563eb">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Stock Opname">
+  <link rel="icon" type="image/svg+xml" href="icons/icon-192.svg">
+  <link rel="apple-touch-icon" href="icons/icon-192.svg">
+  <title>Stock Opname</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2897/2897785.png">
+  <style>
+    *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+    :root{
+      --primary:#2563eb;--primary-dark:#1d4ed8;--primary-light:#dbeafe;
+      --success:#10b981;--success-light:#d1fae5;
+      --danger:#ef4444;--danger-light:#fee2e2;
+      --warning:#f59e0b;--warning-light:#fef3c7;
+      --gray-50:#f8fafc;--gray-100:#f1f5f9;--gray-200:#e2e8f0;--gray-300:#cbd5e1;
+      --gray-400:#94a3b8;--gray-500:#64748b;--gray-600:#475569;--gray-700:#334155;--gray-800:#1e293b;--gray-900:#0f172a;
+      --radius:16px;--radius-sm:10px;--radius-lg:20px;--radius-full:9999px;
+      --shadow-sm:0 1px 2px rgba(0,0,0,.05);--shadow:0 1px 3px rgba(0,0,0,.1),0 1px 2px rgba(0,0,0,.06);
+      --shadow-md:0 4px 6px -1px rgba(0,0,0,.1),0 2px 4px -2px rgba(0,0,0,.1);
+      --shadow-lg:0 10px 15px -3px rgba(0,0,0,.1),0 4px 6px -4px rgba(0,0,0,.1);
+      --shadow-xl:0 20px 25px -5px rgba(0,0,0,.1),0 8px 10px -6px rgba(0,0,0,.1);
+      --transition:all .2s cubic-bezier(.4,0,.2,1);
+      --font-sans:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+    }
+    html{height:100%;scroll-behavior:smooth}
+    body{font-family:var(--font-sans);background:linear-gradient(135deg,#f0f9ff 0%,#e0f2fe 100%);color:var(--gray-800);min-height:100%;font-size:15px;line-height:1.6;padding-bottom:100px;-webkit-font-smoothing:antialiased}
+
+    /* Loading Bar */
+    .loading-bar{position:fixed;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--primary),#60a5fa,#a78bfa,var(--primary));background-size:300% 100%;animation:loading 1.5s linear infinite;z-index:9999;display:none}
+    .loading-bar.show{display:block}
+    @keyframes loading{0%{background-position:300% 0}100%{background-position:-300% 0}}
+
+    /* Header */
+    .header{background:linear-gradient(135deg,var(--primary) 0%,var(--primary-dark) 100%);color:white;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;box-shadow:var(--shadow-lg)}
+    .header-left{display:flex;align-items:center;gap:14px}
+    .header-logo{width:42px;height:42px;background:rgba(255,255,255,.2);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;font-size:22px;backdrop-filter:blur(10px)}
+    .header-info{}
+    .header-title{font-size:18px;font-weight:700;letter-spacing:-.3px}
+    .header-sub{font-size:11px;opacity:.85;margin-top:1px;font-weight:500}
+    .header-right{display:flex;align-items:center;gap:8px}
+    .icon-btn{background:rgba(255,255,255,.15);border:none;color:white;width:40px;height:40px;border-radius:var(--radius-full);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:18px;backdrop-filter:blur(10px);transition:var(--transition)}
+    .icon-btn:hover{background:rgba(255,255,255,.25);transform:scale(1.05)}
+    .icon-btn:active{transform:scale(.95)}
+
+    /* Connection Status */
+    .connection-status{position:absolute;top:100%;left:0;right:0;background:var(--success);color:white;text-align:center;padding:8px;font-size:12px;font-weight:600;display:none;z-index:150}
+    .connection-status.offline{background:var(--danger);display:block}
+    .connection-status.online{background:var(--success);display:block;animation:fadeOut 3s forwards}
+
+    /* Bottom Navigation */
+    .bottom-nav{position:fixed;bottom:0;left:0;right:0;background:rgba(255,255,255,.95);backdrop-filter:blur(20px);border-top:1px solid rgba(0,0,0,.05);display:flex;z-index:200;box-shadow:0 -4px 20px rgba(0,0,0,.1);padding:8px 16px;padding-bottom:max(8px,env(safe-area-inset-bottom))}
+    .nav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 4px;border:none;background:none;cursor:pointer;color:var(--gray-400);font-size:11px;font-weight:600;gap:4px;position:relative;transition:var(--transition);border-radius:var(--radius)}
+    .nav-item.active{color:var(--primary)}
+    .nav-item.active .nav-icon{background:var(--primary-light);transform:scale(1.1)}
+    .nav-icon{width:48px;height:48px;border-radius:var(--radius-lg);display:flex;align-items:center;justify-content:center;font-size:22px;transition:var(--transition)}
+    .nav-badge{position:absolute;top:4px;right:calc(50% - 20px);background:var(--danger);color:white;font-size:10px;font-weight:700;min-width:18px;height:18px;border-radius:var(--radius-full);display:flex;align-items:center;justify-content:center;padding:0 5px;box-shadow:0 2px 4px rgba(239,68,68,.4)}
+
+    /* Page Layout */
+    .page{display:none;padding:16px;padding-top:20px}
+    .page.active{display:block;animation:fadeIn .3s ease-out}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+    .section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding:0 4px}
+    .section-title{font-size:18px;font-weight:700;color:var(--gray-800);display:flex;align-items:center;gap:8px}
+    .section-title span{font-size:24px}
+
+    /* Date Chip */
+    .date-chip{display:flex;align-items:center;gap:6px;background:white;color:var(--primary);border:1.5px solid var(--primary-light);border-radius:var(--radius-full);padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:var(--shadow-sm);transition:var(--transition)}
+    .date-chip:hover{background:var(--primary-light);transform:scale(1.02)}
+    .date-chip:active{transform:scale(.98)}
+
+    /* Cards */
+    .card{background:rgba(255,255,255,.9);backdrop-filter:blur(10px);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);padding:20px;margin-bottom:16px;border:1px solid rgba(0,0,0,.03);transition:var(--transition)}
+    .card:hover{box-shadow:var(--shadow-xl);transform:translateY(-2px)}
+
+    /* Form Elements */
+    .form-group{margin-bottom:18px}
+    .form-label{display:block;font-size:12px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px}
+    .form-input{width:100%;padding:14px 16px;border:2px solid var(--gray-200);border-radius:var(--radius);font-size:15px;font-family:inherit;color:var(--gray-800);background:white;transition:var(--transition);-webkit-appearance:none}
+    .form-input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 4px rgba(37,99,235,.1)}
+    .form-input[readonly]{background:var(--gray-50);color:var(--gray-600);cursor:not-allowed}
+    .form-input.error{border-color:var(--danger);box-shadow:0 0 0 4px rgba(239,68,68,.1)}
+    .form-input.success{border-color:var(--success);box-shadow:0 0 0 4px rgba(16,185,129,.1)}
+
+    /* Qty Input - Special styling */
+    .qty-input{font-size:28px;font-weight:800;text-align:center;color:var(--primary);letter-spacing:2px;padding:18px;border:2px dashed var(--primary-light);border-radius:var(--radius-lg)}
+    .qty-input:focus{border-style:solid}
+
+    .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .form-row.clean-row{grid-template-columns:1fr}
+    .ui-hidden{display:none!important}
+    .search-wrap{position:relative}
+    .search-input{padding-left:46px;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E") no-repeat 14px center white;background-size:20px}
+    .search-dropdown{position:absolute;top:calc(100% + 8px);left:0;right:0;background:white;border:2px solid var(--gray-100);border-radius:var(--radius);box-shadow:var(--shadow-xl);max-height:280px;overflow-y:auto;z-index:300;display:none}
+    .search-dropdown.show{display:block;animation:slideDown .2s ease-out}
+    @keyframes slideDown{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
+    .search-item{padding:14px 16px;border-bottom:1px solid var(--gray-100);cursor:pointer;transition:var(--transition)}
+    .search-item:last-child{border-bottom:none}
+    .search-item:hover{background:var(--primary-light)}
+    .search-item.selected{background:var(--primary-light)}
+    .search-item-name{font-size:14px;font-weight:600;color:var(--gray-800)}
+    .search-item-sku{font-size:12px;font-weight:700;color:var(--primary);margin-top:2px}
+    .search-item-batch{font-size:11px;color:var(--gray-400);margin-top:2px}
+    .search-item small{display:block;font-size:11px;color:var(--gray-400);margin-top:2px}
+
+    /* Buttons */
+    .btn{display:flex;align-items:center;justify-content:center;gap:8px;padding:14px 24px;border:none;border-radius:var(--radius);font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;width:100%;margin-bottom:10px;transition:var(--transition);position:relative;overflow:hidden}
+    .btn::before{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background:linear-gradient(135deg,rgba(255,255,255,.2) 0%,transparent 100%);opacity:0;transition:var(--transition)}
+    .btn:hover::before{opacity:1}
+    .btn:active{transform:scale(.98)}
+    .btn-primary{background:linear-gradient(135deg,var(--primary) 0%,var(--primary-dark) 100%);color:white;box-shadow:0 4px 12px rgba(37,99,235,.3)}
+    .btn-primary:hover{box-shadow:0 6px 16px rgba(37,99,235,.4);transform:translateY(-1px)}
+    .btn-success{background:linear-gradient(135deg,var(--success) 0%,#059669 100%);color:white;box-shadow:0 4px 12px rgba(16,185,129,.3)}
+    .btn-success:hover{box-shadow:0 6px 16px rgba(16,185,129,.4);transform:translateY(-1px)}
+    .btn-danger{background:linear-gradient(135deg,var(--danger) 0%,#dc2626 100%);color:white;box-shadow:0 4px 12px rgba(239,68,68,.3)}
+    .btn-danger:hover{box-shadow:0 6px 16px rgba(239,68,68,.4);transform:translateY(-1px)}
+    .btn-outline{background:white;color:var(--gray-600);border:2px solid var(--gray-200)}
+    .btn-outline:hover{border-color:var(--primary);color:var(--primary);background:var(--primary-light)}
+    .btn-sm{padding:10px 16px;font-size:13px;width:auto;margin-bottom:0}
+    .btn-icon{width:48px;height:48px;padding:0;flex:none;border-radius:var(--radius)}
+
+    /* History Section */
+    .history-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding:0 4px}
+    .history-title{font-size:15px;font-weight:700;color:var(--gray-700)}
+    .count-badge{background:linear-gradient(135deg,var(--primary) 0%,var(--primary-dark) 100%);color:white;font-size:12px;font-weight:700;padding:4px 12px;border-radius:var(--radius-full);box-shadow:0 2px 8px rgba(37,99,235,.3)}
+    .history-item{background:rgba(255,255,255,.9);backdrop-filter:blur(10px);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;margin-bottom:12px;border-left:4px solid var(--primary);transition:var(--transition)}
+    .history-item:hover{transform:translateX(4px);box-shadow:var(--shadow-md)}
+    .history-item.success{border-left-color:var(--success)}
+    .history-item.danger{border-left-color:var(--danger)}
+    .history-item-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px}
+    .history-item-name{font-size:15px;font-weight:700;color:var(--gray-800);flex:1;line-height:1.4}
+    .history-item-qty{font-size:26px;font-weight:800;color:var(--primary);white-space:nowrap}
+    .history-item-meta{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+    .meta-chip{background:var(--gray-100);color:var(--gray-600);font-size:11px;font-weight:600;padding:5px 10px;border-radius:var(--radius-full)}
+    .meta-chip.blue{background:var(--primary-light);color:var(--primary)}
+    .meta-chip.batch{background:var(--warning-light);color:#92400e}
+    .meta-chip.user{background:var(--success-light);color:#166534}
+    .history-item-actions{display:flex;gap:8px}
+
+    /* Empty State */
+    .empty-state{text-align:center;padding:50px 24px;color:var(--gray-400)}
+    .empty-icon{font-size:56px;margin-bottom:12px;opacity:.5}
+    .empty-text{font-size:14px;font-weight:500}
+
+    /* Modal */
+    .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);z-index:500;align-items:flex-end;justify-content:center}
+    .modal-overlay.show{display:flex;animation:fadeInOverlay .3s ease-out}
+    @keyframes fadeInOverlay{from{opacity:0}to{opacity:1}}
+    .modal-sheet{background:white;border-radius:var(--radius-lg) var(--radius-lg) 0 0;width:100%;max-width:500px;max-height:92vh;overflow-y:auto;padding:24px;padding-bottom:max(24px,env(safe-area-inset-bottom));animation:slideUp .3s cubic-bezier(.32,.72,.15,1)}
+    @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+    .modal-handle{width:48px;height:5px;background:var(--gray-200);border-radius:var(--radius-full);margin:0 auto 20px}
+    .modal-title{font-size:20px;font-weight:700;margin-bottom:20px;color:var(--gray-800)}
+    .modal-center{align-items:center;padding:24px}
+    .modal-box{background:white;border-radius:var(--radius-lg);width:100%;max-width:380px;padding:32px 28px;box-shadow:var(--shadow-xl)}
+    .login-logo{text-align:center;font-size:56px;margin-bottom:12px}
+    .login-title{text-align:center;font-size:24px;font-weight:800;margin-bottom:6px}
+    .login-sub{text-align:center;font-size:14px;color:var(--gray-400);margin-bottom:28px}
+    .error-msg{color:var(--danger);font-size:13px;margin-bottom:14px;text-align:center;min-height:20px;font-weight:500}
+
+    /* Toast */
+    .toast{position:fixed;top:80px;left:50%;transform:translateX(-50%);color:white;padding:12px 24px;border-radius:var(--radius-full);font-size:14px;font-weight:600;z-index:1000;white-space:nowrap;box-shadow:var(--shadow-xl);animation:toastIn .3s cubic-bezier(.32,.72,.15,1);max-width:90vw}
+    .toast.success{background:linear-gradient(135deg,var(--success) 0%,#059669 100%)}
+    .toast.error{background:linear-gradient(135deg,var(--danger) 0%,#dc2626 100%)}
+    .toast.info{background:linear-gradient(135deg,var(--primary) 0%,var(--primary-dark) 100%)}
+    @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(-20px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+
+    /* FAB */
+    .fab{position:fixed;bottom:96px;right:20px;width:56px;height:56px;border-radius:var(--radius-full);background:linear-gradient(135deg,var(--primary) 0%,var(--primary-dark) 100%);color:white;border:none;font-size:24px;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 20px rgba(37,99,235,.4);cursor:pointer;z-index:150;transition:var(--transition)}
+    .fab:hover{transform:scale(1.1);box-shadow:0 12px 28px rgba(37,99,235,.5)}
+    .fab:active{transform:scale(.95)}
+
+    /* Install Button */
+    .install-btn{background:linear-gradient(135deg,var(--success) 0%,#059669 100%);color:white;border:none;padding:10px 20px;border-radius:var(--radius-full);font-size:13px;font-weight:700;cursor:pointer;display:none;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(16,185,129,.3)}
+    .install-btn.show{display:flex;animation:pulse 2s infinite}
+    .install-btn:hover{transform:scale(1.05)}
+    @keyframes pulse{0%,100%{box-shadow:0 4px 12px rgba(16,185,129,.3)}50%{box-shadow:0 4px 20px rgba(16,185,129,.5)}}
+
+    /* Status Indicator */
+    .status-dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+    .status-dot.online{background:var(--success);box-shadow:0 0 8px var(--success)}
+    .status-dot.offline{background:var(--danger);box-shadow:0 0 8px var(--danger)}
+
+    /* Utility */
+    .text-center{text-align:center}
+    .mt-2{margin-top:8px}
+    .mb-2{margin-bottom:8px}
+  </style>
+</head>
+<body>
+<div class="loading-bar" id="loadingBar"></div>
+
+<header class="header">
+  <div class="header-left">
+    <div class="header-logo">📦</div>
+    <div class="header-info">
+      <div class="header-title">Stock Opname</div>
+      <div class="header-sub" id="userDisplay">Memuat...</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <button class="install-btn" id="installBtn" onclick="installApp()"><span class="status-dot"></span> 📲 Install App</button>
+    <button class="icon-btn" id="syncBtn" title="Sync">🔄</button>
+    <button class="icon-btn" id="logoutBtn" title="Logout">🚪</button>
+  </div>
+</header>
+<div class="connection-status" id="connectionStatus"></div>
+
+<!-- PAGE: Product In -->
+<div class="page active" id="page-product-in">
+  <div class="section-header">
+    <span class="section-title">📥 Product In</span>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button class="btn btn-sm btn-outline" onclick="openProductManagement()" style="font-size:11px;padding:5px 10px;">🗂️ Produk</button>
+      <button class="date-chip" onclick="openProductInDatePicker()">
+        📅 <span id="productInDateDisplay">--/--/----</span>
+      </button>
+    </div>
+  </div>
+  <div class="card">
+    <form id="productInForm">
+      <div class="form-group">
+        <label class="form-label">Scan / Cari Product</label>
+        <div class="search-wrap" style="display:flex;gap:8px;">
+          <input type="text" class="form-input search-input" id="searchProduct" placeholder="Ketik nama produk atau scan..." autocomplete="off" style="flex:1;">
+          <button type="button" class="btn btn-primary" onclick="openBarcodeScanner('searchProduct', 'product-in')" style="width:52px;padding:0;flex:none;">📷</button>
+          <div class="search-dropdown" id="searchResults"></div>
+        </div>
+      </div>
+      <div class="form-row ui-hidden">
+        <div class="form-group">
+          <label class="form-label">Barcode</label>
+          <input type="text" class="form-input" id="inputBarcode" readonly placeholder="-">
+        </div>
+        <div class="form-group">
+          <label class="form-label">SKU</label>
+          <input type="text" class="form-input" id="inputSKU" readonly placeholder="-">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nama Product</label>
+        <input type="text" class="form-input" id="inputProduct" readonly placeholder="-">
+      </div>
+      <div class="form-row clean-row">
+        <div class="form-group">
+          <label class="form-label">Batch</label>
+          <div class="search-wrap" style="position:relative;">
+            <input type="text" class="form-input" id="inputBatch" placeholder="Pilih batch..." autocomplete="off" list="batchListPI">
+            <div class="search-dropdown" id="batchDropdownPI" style="max-height:150px;"></div>
+          </div>
+          <datalist id="batchListPI"></datalist>
+        </div>
+        <div class="form-group ui-hidden">
+          <label class="form-label">SKU+Batch</label>
+          <input type="text" class="form-input" id="inputSKUBatch" readonly placeholder="-">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Qty &nbsp;<small style="color:var(--gray-400);font-weight:400;text-transform:none">contoh: 10+5 atau 20*3</small></label>
+        <input type="text" class="form-input qty-input" id="inputQty" placeholder="0" inputmode="decimal" autocomplete="off">
+      </div>
+      <button type="submit" class="btn btn-primary">💾 Simpan Product In</button>
+      <button type="button" id="cancelEditBtn" class="btn btn-outline" style="display:none">✕ Batal Edit</button>
+    </form>
+  </div>
+</div>
+
+<!-- PAGE: Cycle Count -->
+<div class="page" id="page-cycle-count">
+  <div class="section-header">
+    <span class="section-title">📊 Cycle Count</span>
+    <button class="date-chip" onclick="openDatePicker()">
+      📅 <span id="cycleDateDisplay">--/--/----</span>
+    </button>
+  </div>
+  <div class="card">
+    <form id="cycleCountForm">
+      <div class="form-group">
+        <label class="form-label">Scan / Cari Product</label>
+        <div class="search-wrap" style="display:flex;gap:8px;">
+          <input type="text" class="form-input search-input" id="searchCycle" placeholder="Ketik nama produk atau scan..." autocomplete="off" style="flex:1;">
+          <button type="button" class="btn btn-success" onclick="openBarcodeScanner('searchCycle', 'cycle-count')" style="width:52px;padding:0;flex:none;">📷</button>
+          <div class="search-dropdown" id="cycleSearchResults"></div>
+        </div>
+      </div>
+      <div class="form-row ui-hidden">
+        <div class="form-group">
+          <label class="form-label">Barcode</label>
+          <input type="text" class="form-input" id="cycleBarcode" readonly placeholder="-">
+        </div>
+        <div class="form-group">
+          <label class="form-label">SKU</label>
+          <input type="text" class="form-input" id="cycleSKU" readonly placeholder="-">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nama Product</label>
+        <input type="text" class="form-input" id="cycleProduct" readonly placeholder="-">
+      </div>
+      <div class="form-row clean-row">
+        <div class="form-group">
+          <label class="form-label">Batch</label>
+          <div class="search-wrap" style="position:relative;">
+            <input type="text" class="form-input" id="cycleBatch" placeholder="Pilih batch..." autocomplete="off" list="batchListCC">
+            <div class="search-dropdown" id="batchDropdownCC" style="max-height:150px;"></div>
+          </div>
+          <datalist id="batchListCC"></datalist>
+        </div>
+        <div class="form-group ui-hidden">
+          <label class="form-label">SKU+Batch</label>
+          <input type="text" class="form-input" id="cycleSKUBatch" readonly placeholder="-">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Qty Fisik &nbsp;<small style="color:var(--gray-400);font-weight:400;text-transform:none">contoh: 10+5 atau 20*3</small></label>
+        <input type="text" class="form-input qty-input" id="cycleQty" placeholder="0" inputmode="decimal" autocomplete="off">
+      </div>
+      <button type="submit" class="btn btn-success">💾 Simpan Cycle Count</button>
+      <button type="button" id="cancelEditCycleBtn" class="btn btn-outline" style="display:none">✕ Batal Edit</button>
+    </form>
+  </div>
+</div>
+
+<!-- PAGE: History -->
+<div class="page" id="page-history">
+  <div class="section-header">
+    <span class="section-title">📋 Riwayat</span>
+    <button class="date-chip" onclick="openGlobalDatePicker()">
+      📅 <span id="globalDateDisplay">--/--/----</span>
+    </button>
+  </div>
+
+  <!-- Tab Switcher for History -->
+  <div style="display:flex;gap:8px;margin-bottom:16px;">
+    <button class="btn btn-sm" id="historyTabPI" onclick="showHistoryTab('product-in')" style="flex:1;background:var(--primary);color:white;">📥 Product In</button>
+    <button class="btn btn-sm btn-outline" id="historyTabCC" onclick="showHistoryTab('cycle-count')" style="flex:1;">📊 Cycle Count</button>
+  </div>
+
+  <!-- Product In History -->
+  <div id="historyContentPI">
+    <div class="history-header">
+      <span class="history-title">Product In - <span id="historyDatePI">Hari Ini</span></span>
+      <span class="count-badge" id="productInCount">0</span>
+    </div>
+    <div id="productInList"></div>
+  </div>
+
+  <!-- Cycle Count History -->
+  <div id="historyContentCC" style="display:none;">
+    <div class="history-header">
+      <span class="history-title">Cycle Count - <span id="historyDateCC">Hari Ini</span></span>
+      <span class="count-badge" id="cycleCountCount">0</span>
+    </div>
+    <div id="cycleCountList"></div>
+  </div>
+</div>
+
+<!-- Bottom Nav -->
+<nav class="bottom-nav">
+  <button class="nav-item active" data-page="product-in">
+    <span class="nav-icon">📥</span>
+    <span>Product In</span>
+    <span class="nav-badge" id="navBadgePI" style="display:none">0</span>
+  </button>
+  <button class="nav-item" data-page="cycle-count">
+    <span class="nav-icon">📊</span>
+    <span>Cycle Count</span>
+    <span class="nav-badge" id="navBadgeCC" style="display:none">0</span>
+  </button>
+  <button class="nav-item" data-page="history">
+    <span class="nav-icon">📋</span>
+    <span>History</span>
+    <span class="nav-badge" id="navBadgeHistory" style="display:none">0</span>
+  </button>
+</nav>
+
+<!-- Login Modal -->
+<div class="modal-overlay modal-center show" id="loginModal">
+  <div class="modal-box">
+    <div class="login-logo">📦</div>
+    <div class="login-title">Stock Opname</div>
+    <div class="login-sub">Warehouse Online Daily</div>
+    <form id="loginForm">
+      <div class="form-group">
+        <label class="form-label">Username</label>
+        <input type="text" class="form-input" id="loginUsername" placeholder="Nama Anda" autocomplete="off" autofocus>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="password" class="form-input" id="loginPassword" placeholder="••••••">
+      </div>
+      <div class="error-msg" id="loginError"></div>
+      <button type="submit" class="btn btn-primary">Masuk</button>
+    </form>
+  </div>
+</div>
+
+<!-- Create Batch Modal -->
+<div class="modal-overlay" id="createBatchModal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">➕ Tambah Batch Baru</div>
+    <form id="createBatchForm">
+      <div class="form-group">
+        <label class="form-label">Barcode</label>
+        <input type="text" class="form-input" id="newBatchBarcode" required>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">SKU</label>
+          <input type="text" class="form-input" id="newBatchSKU" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Nama Product</label>
+          <input type="text" class="form-input" id="newBatchProduct" required>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Batch</label>
+        <input type="text" class="form-input" id="newBatchBatch" required>
+      </div>
+      <button type="submit" class="btn btn-success">✅ Simpan Batch</button>
+      <button type="button" class="btn btn-outline" onclick="closeModal('createBatchModal')">Batal</button>
+    </form>
+  </div>
+</div>
+
+<!-- Edit History Item Modal -->
+<div class="modal-overlay" id="editHistoryModal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="editHistoryTitle">✏️ Edit Data</div>
+    <form id="editHistoryForm">
+      <div class="form-group ui-hidden">
+        <label class="form-label">Barcode</label>
+        <input type="text" class="form-input" id="editBarcode" readonly>
+      </div>
+      <div class="form-row clean-row">
+        <div class="form-group ui-hidden">
+          <label class="form-label">SKU</label>
+          <input type="text" class="form-input" id="editSKU" readonly>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Batch</label>
+          <input type="text" class="form-input" id="editBatch" readonly>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nama Product</label>
+        <input type="text" class="form-input" id="editProduct" readonly>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Qty</label>
+        <input type="text" class="form-input qty-input" id="editQty" inputmode="decimal">
+      </div>
+      <div style="display:flex;gap:10px;">
+        <button type="submit" class="btn btn-success" id="editSaveBtn">💾 Simpan</button>
+        <button type="button" class="btn btn-danger" id="editDeleteBtn">🗑️ Hapus</button>
+      </div>
+      <button type="button" class="btn btn-outline" onclick="closeEditHistoryModal()">Batal</button>
+    </form>
+  </div>
+</div>
+
+<!-- Product Management Modal -->
+<div class="modal-overlay" id="productManagementModal">
+  <div class="modal-sheet" style="max-height:95vh;">
+    <div class="modal-handle"></div>
+    <div class="modal-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <div class="modal-title" style="margin-bottom:0;">🗂️ Manajemen Produk</div>
+      <button onclick="closeModal('productManagementModal')" style="background:none;border:none;font-size:24px;cursor:pointer;">✕</button>
+    </div>
+
+    <!-- Search Products -->
+    <div class="search-wrap" style="margin-bottom:16px;">
+      <input type="text" class="form-input search-input" id="searchMasterProduct" placeholder="Cari produk..." autocomplete="off">
+      <div class="search-dropdown" id="masterSearchResults"></div>
+    </div>
+
+    <!-- Add New Product Button -->
+    <button class="btn btn-primary" onclick="showAddProductForm()" style="margin-bottom:16px;">➕ Tambah Produk Baru</button>
+
+    <!-- Add Product Form (Hidden by default) -->
+    <div id="addProductForm" style="display:none;background:var(--gray-50);padding:16px;border-radius:var(--radius);margin-bottom:16px;">
+      <div class="modal-title" style="font-size:16px;margin-bottom:12px;">📦 Tambah Produk Baru</div>
+      <form id="newProductForm">
+        <div class="form-group">
+          <label class="form-label">Barcode</label>
+          <input type="text" class="form-input" id="mpBarcode" required placeholder="Ketik atau scan barcode">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Nama Product</label>
+          <div class="search-wrap" style="position:relative;">
+            <input type="text" class="form-input" id="mpProduct" required placeholder="Ketik nama produk..." autocomplete="off">
+            <div class="search-dropdown" id="mpProductSearchResults" style="max-height:150px;"></div>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">SKU</label>
+            <input type="text" class="form-input" id="mpSKU" required placeholder="SKU produk">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Batch</label>
+            <input type="text" class="form-input" id="mpBatch" required placeholder="Nomor batch">
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px;">
+          <button type="submit" class="btn btn-success" style="flex:1;">💾 Simpan</button>
+          <button type="button" class="btn btn-outline" onclick="hideAddProductForm()" style="flex:1;">Batal</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Product List -->
+    <div id="productManagementList" style="max-height:400px;overflow-y:auto;">
+      <!-- Products will be rendered here -->
+    </div>
+  </div>
+</div>
+
+<script>
+// Bottom Nav
+document.querySelectorAll('.nav-item').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    var page = this.dataset.page;
+    document.querySelectorAll('.nav-item').forEach(function(b) { b.classList.remove('active'); });
+    document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+    this.classList.add('active');
+    document.getElementById('page-' + page).classList.add('active');
+  });
+});
+// Close modal on overlay click
+document.querySelectorAll('.modal-overlay').forEach(function(overlay) {
+  overlay.addEventListener('click', function(e) {
+    if (e.target === this && this.id !== 'loginModal') closeModal(this.id);
+  });
+});
+</script>
+
+<!-- Barcode Scanner Modal -->
+<div class="modal-overlay" id="barcodeScannerModal">
+  <div class="modal-sheet" style="max-height:95vh;padding:16px;">
+    <div class="modal-handle"></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <div style="font-size:18px;font-weight:700;">📷 Scan Barcode</div>
+      <button onclick="closeBarcodeScanner()" style="background:none;border:none;font-size:24px;cursor:pointer;">✕</button>
+    </div>
+
+    <!-- Camera View -->
+    <div id="scannerContainer" style="position:relative;background:#000;border-radius:var(--radius);overflow:hidden;margin-bottom:12px;">
+      <video id="scannerVideo" autoplay playsinline style="width:100%;height:250px;object-fit:cover;"></video>
+      <div id="scannerOverlay" style="position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;pointer-events:none;">
+        <div style="width:200px;height:100px;border:2px solid #fff;border-radius:8px;box-shadow:0 0 0 9999px rgba(0,0,0,0.5);"></div>
+      </div>
+      <div id="scannerStatus" style="position:absolute;bottom:10px;left:0;right:0;text-align:center;color:#fff;font-size:12px;"></div>
+    </div>
+
+    <!-- Manual Input -->
+    <div style="text-align:center;margin-bottom:12px;color:var(--gray-400);font-size:13px;">atau ketik barcode manual:</div>
+    <div style="display:flex;gap:8px;">
+      <input type="text" id="manualBarcodeInput" class="form-input" placeholder="Ketik barcode di sini..." style="flex:1;">
+      <button class="btn btn-primary" onclick="submitManualBarcode()" style="width:80px;">OK</button>
+    </div>
+
+    <!-- Torch Toggle -->
+    <button id="torchBtn" class="btn btn-outline" onclick="toggleTorch()" style="margin-top:12px;width:100%;display:none;">🔦 Nyalakan Flash</button>
+  </div>
+</div>
+
+<script src="app-vanilla.js"></script>
+</body>
+</html>
