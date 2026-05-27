@@ -3,7 +3,7 @@
 // Version 3.0 - POST form-urlencoded (CORS-safe)
 // ============================================
 
-const SPREADSHEET_ID = '16kGt5RM2bpAA8iDqlqS1SgATEHYN1X5B8JaLCz29Wvo';
+const SPREADSHEET_ID = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
 const SHEET_MASTER = 'Daftar Product';
 const SHEET_PRODUCT_IN = 'Product In';
 const SHEET_CYCLE_COUNT = 'Cycle Count';
@@ -13,7 +13,6 @@ function doGet(e) {
     status: 'ok',
     message: 'Stock Opname API is running',
     version: '3.0',
-    spreadsheetId: SPREADSHEET_ID,
     note: 'Use POST with application/x-www-form-urlencoded'
   });
 }

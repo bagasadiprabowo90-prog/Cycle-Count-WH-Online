@@ -213,15 +213,17 @@ Kapan perlu redeploy GAS:
 
 Cara redeploy:
 1. Buka https://script.google.com
-2. Edit code
-3. Deploy > Manage deployments > Edit > New version > Deploy
-4. Update URL baru di app-vanilla.js (CONFIG.SCRIPT_URL)
-5. Deploy ulang ke Vercel
+2. Buka Project Settings > Script Properties
+3. Set property `SPREADSHEET_ID` dengan ID spreadsheet produksi
+4. Edit code
+5. Deploy > Manage deployments > Edit > New version > Deploy
+6. Update URL baru di app-vanilla.js (CONFIG.SCRIPT_URL)
+7. Deploy ulang ke Vercel
 
 ### BACKUP DATA
 Data tersimpan di Google Spreadsheet:
-- ID: 16kGt5RM2bpAA8iDqlqS1SgATEHYN1X5B8JaLCz29Wvo
-- Buka: https://docs.google.com/spreadsheets/d/16kGt5RM2bpAA8iDqlqS1SgATEHYN1X5B8JaLCz29Wvo
+- ID: simpan di Script Properties Apps Script sebagai `SPREADSHEET_ID`
+- Buka: gunakan link spreadsheet internal perusahaan
 
 ### TAMBAH USER
 Tidak perlu setup -- username bebas, password BLP123.
@@ -240,8 +242,8 @@ Untuk ganti password: edit CONFIG.LOGIN_PASSWORD di app-vanilla.js
 |------|-----|
 | Aplikasi Local | http://localhost:8000/index-vanilla.html |
 | Google Apps Script | https://script.google.com |
-| Spreadsheet | https://docs.google.com/spreadsheets/d/16kGt5RM2bpAA8iDqlqS1SgATEHYN1X5B8JaLCz29Wvo |
-| API Endpoint | https://script.google.com/macros/s/AKfycbyCfyQdUj9saS8hBrVoiPM4Se-ywCQze1N4mT_aYNqkDokcyiZ8FDrfodiXGWuhUUVp/exec |
+| Spreadsheet | simpan link asli hanya di dokumentasi internal |
+| API Endpoint | gunakan URL deployment Apps Script aktif dari dashboard |
 | Debug API | http://localhost:8000/debug-api.html |
 | Vercel Dashboard | https://vercel.com/dashboard |
 
