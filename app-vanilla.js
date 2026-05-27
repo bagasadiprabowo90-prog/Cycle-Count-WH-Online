@@ -6,7 +6,7 @@ const CONFIG = {
   SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbyCfyQdUj9saS8hBrVoiPM4Se-ywCQze1N4mT_aYNqkDokcyiZ8FDrfodiXGWuhUUVp/exec',
   LOGIN_PASSWORD: 'BLP123',
   STORAGE_KEY: 'stockOpnameUser',
-  LOGOUT_KEY: 'stockOpnameLoggedOut'
+  LEGACY_LOGOUT_KEY: 'stockOpnameLoggedOut'
 };
 
 let state = {
@@ -85,64 +85,31 @@ async function logout() {
   if (confirm('Logout dari aplikasi?')) {
     await clearSavedUser();
     state.currentUser = null;
-    location.reload();
+    updateUserDisplay();
+    showLoginModal();
   }
 }
 
 async function getSavedUser() {
   var user = null;
-  var source = 'none';
-
-  if (isLoggedOut()) {
-    console.log('[App] Saved user ignored: logout marker active');
-    return null;
-  }
 
   try {
     user = localStorage.getItem(CONFIG.STORAGE_KEY);
-    if (user) source = 'localStorage';
   } catch (error) {
     console.warn('[App] localStorage read failed:', error);
   }
 
-  if (!user) {
-    user = getCookie(CONFIG.STORAGE_KEY);
-    if (user) {
-      source = 'cookie';
-      saveUser(user);
-    }
-  }
-
-  if (!user) {
-    try {
-      if (dbReadyPromise) await Promise.race([
-        dbReadyPromise,
-        new Promise(function(resolve) { setTimeout(resolve, 500); })
-      ]);
-      user = await dbGetSetting(CONFIG.STORAGE_KEY);
-      if (user) {
-        source = 'indexedDB';
-        saveUser(user);
-      }
-    } catch (error) {
-      console.warn('[App] IndexedDB user read failed:', error);
-    }
-  }
-
-  console.log('[App] Saved user source:', source);
+  console.log('[App] Saved user source:', user ? 'localStorage' : 'none');
   return user;
 }
 
 async function saveUser(username) {
-  clearLogoutMarker();
-
   try {
     localStorage.setItem(CONFIG.STORAGE_KEY, username);
+    localStorage.removeItem(CONFIG.LEGACY_LOGOUT_KEY);
   } catch (error) {
     console.warn('[App] localStorage save failed:', error);
   }
-
-  setCookie(CONFIG.STORAGE_KEY, username, 365);
 
   try {
     if (dbReadyPromise) await Promise.race([
@@ -153,14 +120,16 @@ async function saveUser(username) {
   } catch (error) {
     console.warn('[App] IndexedDB user save failed:', error);
   }
-  console.log('[App] Login saved:', await getLoginStorageStatus());
+
+  deleteCookie(CONFIG.STORAGE_KEY);
+  deleteCookie(CONFIG.LEGACY_LOGOUT_KEY);
+  console.log('[App] Login saved');
 }
 
 async function clearSavedUser() {
-  setLogoutMarker();
-
   try {
     localStorage.removeItem(CONFIG.STORAGE_KEY);
+    localStorage.removeItem(CONFIG.LEGACY_LOGOUT_KEY);
   } catch (error) {
     console.warn('[App] localStorage remove failed:', error);
   }
@@ -172,47 +141,13 @@ async function clearSavedUser() {
   }
 
   deleteCookie(CONFIG.STORAGE_KEY);
-}
-
-function setLogoutMarker() {
-  try {
-    localStorage.setItem(CONFIG.LOGOUT_KEY, '1');
-  } catch (error) {}
-  setCookie(CONFIG.LOGOUT_KEY, '1', 365);
-}
-
-function clearLogoutMarker() {
-  try {
-    localStorage.removeItem(CONFIG.LOGOUT_KEY);
-  } catch (error) {}
-  deleteCookie(CONFIG.LOGOUT_KEY);
-}
-
-function isLoggedOut() {
-  try {
-    if (localStorage.getItem(CONFIG.LOGOUT_KEY) === '1') return true;
-  } catch (error) {}
-  return getCookie(CONFIG.LOGOUT_KEY) === '1';
-}
-
-function setCookie(name, value, days) {
-  var maxAge = days * 24 * 60 * 60;
-  document.cookie = name + '=' + encodeURIComponent(value) + '; path=/; max-age=' + maxAge + '; SameSite=Lax; Secure';
-}
-
-function getCookie(name) {
-  var prefix = name + '=';
-  var parts = document.cookie ? document.cookie.split('; ') : [];
-  for (var i = 0; i < parts.length; i++) {
-    if (parts[i].indexOf(prefix) === 0) {
-      return decodeURIComponent(parts[i].slice(prefix.length));
-    }
-  }
-  return null;
+  deleteCookie(CONFIG.LEGACY_LOGOUT_KEY);
 }
 
 function deleteCookie(name) {
   document.cookie = name + '=; path=/; max-age=0; SameSite=Lax; Secure';
+  document.cookie = name + '=; path=/; max-age=0; SameSite=Lax';
+  document.cookie = name + '=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
 }
 
 function requestStoragePersistence() {
@@ -224,27 +159,9 @@ function requestStoragePersistence() {
   });
 }
 
-async function getLoginStorageStatus() {
-  var local = false;
-  var indexed = false;
-  var cookie = false;
-
-  try {
-    local = localStorage.getItem(CONFIG.STORAGE_KEY) ? true : false;
-  } catch (error) {}
-
-  try {
-    indexed = (await dbGetSetting(CONFIG.STORAGE_KEY)) ? true : false;
-  } catch (error) {}
-
-  cookie = getCookie(CONFIG.STORAGE_KEY) ? true : false;
-
-  return { localStorage: local, indexedDB: indexed, cookie: cookie };
-}
-
 function updateUserDisplay() {
   const el = document.getElementById('userDisplay');
-  if (el) el.textContent = '👤 ' + state.currentUser;
+  if (el) el.textContent = state.currentUser ? '👤 ' + state.currentUser : '👤 -';
 }
 
 function updateCurrentDate() {
