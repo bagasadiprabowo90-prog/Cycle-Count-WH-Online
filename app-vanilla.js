@@ -43,7 +43,7 @@ async function initApp() {
   setupMasterProductSearch();
   registerServiceWorker();
   updateConnectionStatus();
-  checkLogin();
+  await checkLogin();
 }
 
 function initializeApp() {
@@ -55,12 +55,12 @@ function initializeApp() {
 // LOGIN
 // ============================================
 
-function checkLogin() {
+async function checkLogin() {
   // Update all date displays to today
   globalSelectedDate = null; // Reset to today (null = today)
   updateAllDateDisplays();
 
-  state.currentUser = localStorage.getItem(CONFIG.STORAGE_KEY);
+  state.currentUser = await getSavedUser();
   if (!state.currentUser) {
     showLoginModal();
   } else {
@@ -78,11 +78,60 @@ function closeModal(modalId) {
   document.getElementById(modalId).classList.remove('show');
 }
 
-function logout() {
+async function logout() {
   if (confirm('Logout dari aplikasi?')) {
-    localStorage.removeItem(CONFIG.STORAGE_KEY);
+    await clearSavedUser();
     state.currentUser = null;
     location.reload();
+  }
+}
+
+async function getSavedUser() {
+  var user = null;
+
+  try {
+    user = localStorage.getItem(CONFIG.STORAGE_KEY);
+  } catch (error) {
+    console.warn('[App] localStorage read failed:', error);
+  }
+
+  if (!user) {
+    try {
+      user = await dbGetSetting(CONFIG.STORAGE_KEY);
+      if (user) localStorage.setItem(CONFIG.STORAGE_KEY, user);
+    } catch (error) {
+      console.warn('[App] IndexedDB user read failed:', error);
+    }
+  }
+
+  return user;
+}
+
+async function saveUser(username) {
+  try {
+    localStorage.setItem(CONFIG.STORAGE_KEY, username);
+  } catch (error) {
+    console.warn('[App] localStorage save failed:', error);
+  }
+
+  try {
+    await dbSaveSetting(CONFIG.STORAGE_KEY, username);
+  } catch (error) {
+    console.warn('[App] IndexedDB user save failed:', error);
+  }
+}
+
+async function clearSavedUser() {
+  try {
+    localStorage.removeItem(CONFIG.STORAGE_KEY);
+  } catch (error) {
+    console.warn('[App] localStorage remove failed:', error);
+  }
+
+  try {
+    await dbSaveSetting(CONFIG.STORAGE_KEY, '');
+  } catch (error) {
+    console.warn('[App] IndexedDB user clear failed:', error);
   }
 }
 
@@ -144,7 +193,7 @@ function setupEventListeners() {
 // LOGIN HANDLER
 // ============================================
 
-function handleLogin(e) {
+async function handleLogin(e) {
   e.preventDefault();
   const username = document.getElementById('loginUsername').value.trim();
   const password = document.getElementById('loginPassword').value;
@@ -161,7 +210,7 @@ function handleLogin(e) {
   }
 
   state.currentUser = username;
-  localStorage.setItem(CONFIG.STORAGE_KEY, username);
+  await saveUser(username);
   closeModal('loginModal');
   updateUserDisplay();
   document.getElementById('loginForm').reset();
