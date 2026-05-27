@@ -177,8 +177,17 @@ function updateCurrentDate() {
 // ============================================
 
 function setupEventListeners() {
+  function addListener(id, eventName, handler) {
+    var el = document.getElementById(id);
+    if (el) {
+      el.addEventListener(eventName, handler);
+    } else {
+      console.warn('[App] Element not found:', id);
+    }
+  }
+
   // Login
-  document.getElementById('loginForm').addEventListener('submit', handleLogin);
+  addListener('loginForm', 'submit', handleLogin);
 
   // Tabs
   document.querySelectorAll('.tab-btn').forEach(function(btn) {
@@ -186,21 +195,22 @@ function setupEventListeners() {
   });
 
   // Product In
-  document.getElementById('productInForm').addEventListener('submit', handleSaveProductIn);
-  document.getElementById('searchProduct').addEventListener('input', handleSearchProduct);
-  document.getElementById('cancelEditBtn').addEventListener('click', cancelEditProductIn);
+  addListener('productInForm', 'submit', handleSaveProductIn);
+  addListener('searchProduct', 'input', handleSearchProduct);
+  addListener('cancelEditBtn', 'click', cancelEditProductIn);
 
   // Cycle Count
-  document.getElementById('cycleCountForm').addEventListener('submit', handleSaveCycleCount);
-  document.getElementById('searchCycle').addEventListener('input', handleSearchCycle);
-  document.getElementById('cancelEditCycleBtn').addEventListener('click', cancelEditCycleCount);
+  addListener('cycleCountForm', 'submit', handleSaveCycleCount);
+  addListener('searchCycle', 'input', handleSearchCycle);
+  addListener('cancelEditCycleBtn', 'click', cancelEditCycleCount);
 
   // Navbar
-  document.getElementById('syncBtn').addEventListener('click', handleSync);
-  document.getElementById('logoutBtn').addEventListener('click', logout);
+  addListener('syncBtn', 'click', handleSync);
+  addListener('logoutBtn', 'click', logout);
 
   // FAB
-  document.getElementById('fabBtn').addEventListener('click', showCreateBatchModal);
+  var fabBtn = document.getElementById('fabBtn');
+  if (fabBtn) fabBtn.addEventListener('click', showCreateBatchModal);
 
   // Calculator - Qty inputs
   var inputQty = document.getElementById('inputQty');

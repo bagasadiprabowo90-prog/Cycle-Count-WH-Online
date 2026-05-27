@@ -2,7 +2,7 @@
 // STOCK OPNAME PWA - SERVICE WORKER v2
 // ============================================
 
-const CACHE_VERSION = 'v2.5.0';
+const CACHE_VERSION = 'v2.6.0';
 const STATIC_CACHE = `stock-opname-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `stock-opname-dynamic-${CACHE_VERSION}`;
 
