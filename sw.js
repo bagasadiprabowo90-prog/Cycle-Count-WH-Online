@@ -2,7 +2,7 @@
 // STOCK OPNAME PWA - SERVICE WORKER v2
 // ============================================
 
-const CACHE_VERSION = 'v2.0.0';
+const CACHE_VERSION = 'v2.1.0';
 const STATIC_CACHE = `stock-opname-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `stock-opname-dynamic-${CACHE_VERSION}`;
 
@@ -74,9 +74,34 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Handle local assets - Cache First
+  // Keep app shell fresh so login/storage fixes are not stuck on old JS.
+  if (url.origin === self.location.origin &&
+      (request.mode === 'navigate' ||
+       url.pathname.endsWith('.html') ||
+       url.pathname.endsWith('.js') ||
+       url.pathname.endsWith('.json'))) {
+    event.respondWith(appNetworkFirst(request));
+    return;
+  }
+
+  // Handle other local assets - Cache First
   event.respondWith(cacheFirst(request));
 });
+
+async function appNetworkFirst(request) {
+  try {
+    const networkResponse = await fetch(request);
+    if (networkResponse.ok) {
+      const cache = await caches.open(STATIC_CACHE);
+      cache.put(request, networkResponse.clone());
+    }
+    return networkResponse;
+  } catch (error) {
+    const cachedResponse = await caches.match(request);
+    if (cachedResponse) return cachedResponse;
+    return createOfflineResponse();
+  }
+}
 
 // Cache First Strategy - for static assets
 async function cacheFirst(request) {

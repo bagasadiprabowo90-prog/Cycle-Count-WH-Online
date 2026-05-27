@@ -35,6 +35,7 @@ async function initApp() {
     console.error('[App] IndexedDB init failed:', error);
     showToast('Error: Local storage tidak tersedia', 'error');
   }
+  requestStoragePersistence();
 
   updateCurrentDate();
   updateAllDateDisplays(); // Initialize all date displays
@@ -104,6 +105,11 @@ async function getSavedUser() {
     }
   }
 
+  if (!user) {
+    user = getCookie(CONFIG.STORAGE_KEY);
+    if (user) await saveUser(user);
+  }
+
   return user;
 }
 
@@ -119,6 +125,8 @@ async function saveUser(username) {
   } catch (error) {
     console.warn('[App] IndexedDB user save failed:', error);
   }
+
+  setCookie(CONFIG.STORAGE_KEY, username, 365);
 }
 
 async function clearSavedUser() {
@@ -133,6 +141,37 @@ async function clearSavedUser() {
   } catch (error) {
     console.warn('[App] IndexedDB user clear failed:', error);
   }
+
+  deleteCookie(CONFIG.STORAGE_KEY);
+}
+
+function setCookie(name, value, days) {
+  var maxAge = days * 24 * 60 * 60;
+  document.cookie = name + '=' + encodeURIComponent(value) + '; path=/; max-age=' + maxAge + '; SameSite=Lax; Secure';
+}
+
+function getCookie(name) {
+  var prefix = name + '=';
+  var parts = document.cookie ? document.cookie.split('; ') : [];
+  for (var i = 0; i < parts.length; i++) {
+    if (parts[i].indexOf(prefix) === 0) {
+      return decodeURIComponent(parts[i].slice(prefix.length));
+    }
+  }
+  return null;
+}
+
+function deleteCookie(name) {
+  document.cookie = name + '=; path=/; max-age=0; SameSite=Lax; Secure';
+}
+
+function requestStoragePersistence() {
+  if (!navigator.storage || !navigator.storage.persist) return;
+  navigator.storage.persist().then(function(isPersisted) {
+    console.log('[App] Persistent storage:', isPersisted);
+  }).catch(function(error) {
+    console.warn('[App] Persistent storage request failed:', error);
+  });
 }
 
 function updateUserDisplay() {
