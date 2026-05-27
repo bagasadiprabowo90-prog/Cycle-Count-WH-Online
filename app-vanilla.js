@@ -18,6 +18,8 @@ let state = {
   editingCycleCountId: null
 };
 
+let dbReadyPromise = null;
+
 // ============================================
 // INITIALIZATION
 // ============================================
@@ -27,14 +29,13 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function initApp() {
-  // Initialize IndexedDB first
-  try {
-    await initDB();
-    console.log('[App] IndexedDB initialized');
-  } catch (error) {
-    console.error('[App] IndexedDB init failed:', error);
-    showToast('Error: Local storage tidak tersedia', 'error');
-  }
+  dbReadyPromise = initDB()
+    .then(function() {
+      console.log('[App] IndexedDB initialized');
+    })
+    .catch(function(error) {
+      console.error('[App] IndexedDB init failed:', error);
+    });
   requestStoragePersistence();
 
   updateCurrentDate();
@@ -99,22 +100,26 @@ async function getSavedUser() {
   }
 
   if (!user) {
-    try {
-      user = await dbGetSetting(CONFIG.STORAGE_KEY);
-      if (user) {
-        source = 'indexedDB';
-        localStorage.setItem(CONFIG.STORAGE_KEY, user);
-      }
-    } catch (error) {
-      console.warn('[App] IndexedDB user read failed:', error);
+    user = getCookie(CONFIG.STORAGE_KEY);
+    if (user) {
+      source = 'cookie';
+      saveUser(user);
     }
   }
 
   if (!user) {
-    user = getCookie(CONFIG.STORAGE_KEY);
-    if (user) {
-      source = 'cookie';
-      await saveUser(user);
+    try {
+      if (dbReadyPromise) await Promise.race([
+        dbReadyPromise,
+        new Promise(function(resolve) { setTimeout(resolve, 500); })
+      ]);
+      user = await dbGetSetting(CONFIG.STORAGE_KEY);
+      if (user) {
+        source = 'indexedDB';
+        saveUser(user);
+      }
+    } catch (error) {
+      console.warn('[App] IndexedDB user read failed:', error);
     }
   }
 
@@ -129,13 +134,17 @@ async function saveUser(username) {
     console.warn('[App] localStorage save failed:', error);
   }
 
+  setCookie(CONFIG.STORAGE_KEY, username, 365);
+
   try {
+    if (dbReadyPromise) await Promise.race([
+      dbReadyPromise,
+      new Promise(function(resolve) { setTimeout(resolve, 500); })
+    ]);
     await dbSaveSetting(CONFIG.STORAGE_KEY, username);
   } catch (error) {
     console.warn('[App] IndexedDB user save failed:', error);
   }
-
-  setCookie(CONFIG.STORAGE_KEY, username, 365);
   console.log('[App] Login saved:', await getLoginStorageStatus());
 }
 
