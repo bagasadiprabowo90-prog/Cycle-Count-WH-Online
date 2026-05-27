@@ -77,3 +77,5 @@ web_modules/
 .vscode-test
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+.vercel
