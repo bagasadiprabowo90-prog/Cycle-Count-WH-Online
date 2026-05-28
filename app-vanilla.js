@@ -20,6 +20,7 @@ let state = {
 };
 
 let dbReadyPromise = null;
+let historySearchQuery = '';
 
 // ============================================
 // INITIALIZATION
@@ -207,6 +208,7 @@ function setupEventListeners() {
   // Navbar
   addListener('syncBtn', 'click', handleSync);
   addListener('logoutBtn', 'click', logout);
+  addListener('historySearch', 'input', handleHistorySearch);
 
   // FAB
   var fabBtn = document.getElementById('fabBtn');
@@ -389,17 +391,19 @@ function renderProductInList() {
   if (!container) return;
   container.innerHTML = '';
 
-  if (state.productInList.length === 0) {
-    container.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">Belum ada data</div></div>';
+  const items = filterAndSortHistoryItems(state.productInList);
+
+  if (items.length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">' + getHistoryEmptyText() + '</div></div>';
     document.getElementById('productInCount').textContent = '0';
     return;
   }
 
-  var piCount = state.productInList.length;
+  var piCount = items.length;
   document.getElementById('productInCount').textContent = piCount;
   var navBadgePI = document.getElementById('navBadgePI');
   if (navBadgePI) { navBadgePI.textContent = piCount; navBadgePI.style.display = piCount > 0 ? 'flex' : 'none'; }
-  state.productInList.forEach(function(item) {
+  items.forEach(function(item) {
     var productName = (item.product && item.product.trim()) ? item.product : item.sku;
     container.innerHTML +=
       '<div class="history-item">' +
@@ -418,6 +422,58 @@ function renderProductInList() {
         '</div>' +
       '</div>';
   });
+}
+
+function handleHistorySearch(e) {
+  historySearchQuery = (e.target.value || '').trim().toLowerCase();
+  renderProductInList();
+  renderCycleCountList();
+}
+
+function filterAndSortHistoryItems(items) {
+  var query = historySearchQuery;
+  return (items || [])
+    .filter(function(item) {
+      if (!query) return true;
+      return getHistorySearchText(item).indexOf(query) !== -1;
+    })
+    .sort(function(a, b) {
+      var dateDiff = getHistoryTimestamp(b) - getHistoryTimestamp(a);
+      if (dateDiff !== 0) return dateDiff;
+      return (Number(b.rowId) || 0) - (Number(a.rowId) || 0);
+    });
+}
+
+function getHistorySearchText(item) {
+  return [
+    item.date,
+    item.product,
+    item.batch,
+    item.user,
+    item.qty,
+    item.status,
+    item.sku,
+    item.barcode
+  ].join(' ').toLowerCase();
+}
+
+function getHistoryTimestamp(item) {
+  var dateStr = item && item.date ? String(item.date) : '';
+  var parts = dateStr.split('/');
+  if (parts.length === 3) {
+    var month = parseInt(parts[0], 10);
+    var day = parseInt(parts[1], 10);
+    var year = parseInt(parts[2], 10);
+    var parsed = new Date(year, month - 1, day);
+    if (!isNaN(parsed.getTime())) return parsed.getTime();
+  }
+
+  var fallback = new Date(dateStr);
+  return isNaN(fallback.getTime()) ? 0 : fallback.getTime();
+}
+
+function getHistoryEmptyText() {
+  return historySearchQuery ? 'Tidak ada hasil' : 'Belum ada data';
 }
 
 let currentEditType = null; // 'product-in' or 'cycle-count'
@@ -604,17 +660,19 @@ function renderCycleCountList() {
   if (!container) return;
   container.innerHTML = '';
 
-  if (state.cycleCountList.length === 0) {
-    container.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">Belum ada data</div></div>';
+  const items = filterAndSortHistoryItems(state.cycleCountList);
+
+  if (items.length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">' + getHistoryEmptyText() + '</div></div>';
     document.getElementById('cycleCountCount').textContent = '0';
     return;
   }
 
-  var ccCount = state.cycleCountList.length;
+  var ccCount = items.length;
   document.getElementById('cycleCountCount').textContent = ccCount;
   var navBadgeCC = document.getElementById('navBadgeCC');
   if (navBadgeCC) { navBadgeCC.textContent = ccCount; navBadgeCC.style.display = ccCount > 0 ? 'flex' : 'none'; }
-  state.cycleCountList.forEach(function(item) {
+  items.forEach(function(item) {
     var masterProduct = state.products.find(function(p) { return p.sku === item.sku && p.batch === item.batch; });
     if (!masterProduct) masterProduct = state.products.find(function(p) { return p.sku === item.sku; });
     var productName = (item.product && item.product.trim()) ? item.product : (masterProduct ? masterProduct.product : item.sku);
