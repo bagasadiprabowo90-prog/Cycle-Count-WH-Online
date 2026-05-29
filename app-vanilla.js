@@ -1334,30 +1334,29 @@ function populateBatchDropdown(dropdownId, datalistId, inputId, products, select
   dropdown.innerHTML = '';
   datalist.innerHTML = '';
 
+  // Always show batch input
+  input.value = selectedProduct.batch;
+  input.readOnly = false;
+  dropdown.classList.remove('show');
+
   if (products.length <= 1) {
-    // Only one batch, hide dropdown
-    dropdown.classList.remove('show');
-    input.readOnly = true;
+    // Only one batch - just set the value, no need for dropdown
     return;
   }
 
-  // Add batch options
+  // Add batch options to datalist
   products.forEach(p => {
     const option = document.createElement('option');
     option.value = p.batch;
     datalist.appendChild(option);
   });
 
-  // Set selected batch
-  input.value = selectedProduct.batch;
-  input.readOnly = false;
-
   // Show dropdown on focus
   input.addEventListener('focus', function() {
     showBatchDropdown(dropdownId, products, inputId, selectedProduct);
   });
 
-  // Handle selection
+  // Handle selection via datalist
   input.addEventListener('change', function() {
     const newBatch = input.value;
     const newProduct = products.find(p => p.batch === newBatch);
@@ -1365,7 +1364,14 @@ function populateBatchDropdown(dropdownId, datalistId, inputId, products, select
       // Update barcode with new batch's barcode
       document.getElementById(inputId === 'inputBatch' ? 'inputBarcode' : 'cycleBarcode').value = newProduct.barcode;
       document.getElementById(inputId === 'inputBatch' ? 'inputSKUBatch' : 'cycleSKUBatch').value = newProduct.sku + newBatch;
+      // Update product name
+      document.getElementById(inputId === 'inputBatch' ? 'inputProduct' : 'cycleProduct').value = newProduct.product;
     }
+  });
+
+  // Click on input to show dropdown immediately
+  input.addEventListener('click', function() {
+    showBatchDropdown(dropdownId, products, inputId, selectedProduct);
   });
 }
 
