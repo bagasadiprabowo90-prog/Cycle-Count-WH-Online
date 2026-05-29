@@ -349,20 +349,42 @@ async function loadAllData() {
 async function handleSaveProductIn(e) {
   e.preventDefault();
 
+  // Get form values
+  const barcode = document.getElementById('inputBarcode').value.trim();
+  const sku = document.getElementById('inputSKU').value.trim();
+  const productName = document.getElementById('inputProduct').value.trim();
+  const batch = document.getElementById('inputBatch').value.trim();
+  const qty = calculateQtyInput(document.getElementById('inputQty'), true) || 0;
+
+  // Validation
+  if (!barcode) {
+    showToast('Pilih produk dari daftar!', 'error');
+    return;
+  }
+  if (!batch) {
+    showToast('Batch harus diisi!', 'error');
+    return;
+  }
+  if (qty <= 0) {
+    showToast('Qty harus lebih dari 0', 'error');
+    return;
+  }
+
   const record = {
-    barcode: document.getElementById('inputBarcode').value,
-    sku: document.getElementById('inputSKU').value,
-    product: document.getElementById('inputProduct').value,
-    batch: document.getElementById('inputBatch').value,
-    qty: calculateQtyInput(document.getElementById('inputQty'), true) || 0,
+    barcode: barcode,
+    sku: sku,
+    product: productName,
+    batch: batch,
+    qty: qty,
     status: 'Pending',
     date: globalSelectedDate || getGlobalDate()
   };
 
-  if (!record.barcode || record.qty <= 0) {
-    showToast('Pilih produk dan isi Qty', 'error');
-    return;
-  }
+  // Show loading
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  const originalText = submitBtn.innerHTML;
+  submitBtn.innerHTML = '⏳';
+  submitBtn.disabled = true;
 
   let result;
   if (state.editingProductInId) {
@@ -372,13 +394,20 @@ async function handleSaveProductIn(e) {
     result = await apiRequest('addProductIn', { record: record });
   }
 
+  // Reset button
+  submitBtn.innerHTML = originalText;
+  submitBtn.disabled = false;
+
   if (result.success) {
     showToast(result.message, 'success');
     document.getElementById('productInForm').reset();
+    // Clear batch dropdown
+    document.getElementById('batchDropdownPI').classList.remove('show');
+    document.getElementById('batchListPI').innerHTML = '';
     document.getElementById('searchProduct').value = '';
     document.getElementById('searchResults').classList.remove('show');
     document.getElementById('cancelEditBtn').style.display = 'none';
-    loadAllData();
+    loadDataForDate(globalSelectedDate || getGlobalDate());
   } else {
     showToast(result.message, 'error');
   }
@@ -619,19 +648,41 @@ async function deleteProductIn(rowId) {
 async function handleSaveCycleCount(e) {
   e.preventDefault();
 
+  // Get form values
+  const barcode = document.getElementById('cycleBarcode').value.trim();
+  const sku = document.getElementById('cycleSKU').value.trim();
+  const productName = document.getElementById('cycleProduct').value.trim();
+  const batch = document.getElementById('cycleBatch').value.trim();
+  const qty = calculateQtyInput(document.getElementById('cycleQty'), true) || 0;
+
+  // Validation
+  if (!barcode) {
+    showToast('Pilih produk dari daftar!', 'error');
+    return;
+  }
+  if (!batch) {
+    showToast('Batch harus diisi!', 'error');
+    return;
+  }
+  if (qty <= 0) {
+    showToast('Qty harus lebih dari 0', 'error');
+    return;
+  }
+
   const record = {
-    barcode: document.getElementById('cycleBarcode').value,
-    sku: document.getElementById('cycleSKU').value,
-    product: document.getElementById('cycleProduct').value,
-    batch: document.getElementById('cycleBatch').value,
-    qty: calculateQtyInput(document.getElementById('cycleQty'), true) || 0,
+    barcode: barcode,
+    sku: sku,
+    product: productName,
+    batch: batch,
+    qty: qty,
     date: globalSelectedDate || getGlobalDate()
   };
 
-  if (!record.barcode || record.qty <= 0) {
-    showToast('Pilih produk dan isi Qty', 'error');
-    return;
-  }
+  // Show loading
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  const originalText = submitBtn.innerHTML;
+  submitBtn.innerHTML = '⏳';
+  submitBtn.disabled = true;
 
   let result;
   if (state.editingCycleCountId) {
@@ -641,13 +692,20 @@ async function handleSaveCycleCount(e) {
     result = await apiRequest('addCycleCount', { record: record });
   }
 
+  // Reset button
+  submitBtn.innerHTML = originalText;
+  submitBtn.disabled = false;
+
   if (result.success) {
     showToast(result.message, 'success');
     document.getElementById('cycleCountForm').reset();
+    // Clear batch dropdown
+    document.getElementById('batchDropdownCC').classList.remove('show');
+    document.getElementById('batchListCC').innerHTML = '';
     document.getElementById('searchCycle').value = '';
     document.getElementById('cycleSearchResults').classList.remove('show');
     document.getElementById('cancelEditCycleBtn').style.display = 'none';
-    loadAllData();
+    loadDataForDate(globalSelectedDate || getGlobalDate());
   } else {
     showToast(result.message, 'error');
   }
@@ -1233,68 +1291,84 @@ console.log('[App] Barcode Scanner module loaded');
 function handleSearchProduct(e) {
   const query = e.target.value;
   const container = document.getElementById('searchResults');
-  if (!query || query.length < 1) { container.classList.remove('show'); return; }
+  if (!query || query.length < 2) { container.classList.remove('show'); return; }
 
-  // Use local DB search (FAST! < 50ms)
-  dbSearchProducts(query).then(function(filtered) {
-    container.innerHTML = '';
-    if (filtered.length === 0) {
-      container.innerHTML = '<div class="search-result-item">Tidak ditemukan (total produk: ' + state.products.length + ')</div>';
+  // Debounce - wait 150ms before searching
+  clearTimeout(handleSearchProduct.timeout);
+  handleSearchProduct.timeout = setTimeout(function() {
+    // Use local DB search (FAST! < 50ms)
+    dbSearchProducts(query).then(function(filtered) {
+      container.innerHTML = '';
+      if (filtered.length === 0) {
+        container.innerHTML = '<div class="search-result-item" style="color:var(--gray-400);">Tidak ditemukan</div>';
+        container.classList.add('show');
+        return;
+      }
+
+      filtered.slice(0, 15).forEach(function(product) {
+        var div = document.createElement('div');
+        div.className = 'search-result-item';
+        div.innerHTML =
+          '<div class="search-item-name">' + product.product + '</div>' +
+          '<div style="font-size:11px;color:var(--gray-400);margin-top:2px;">SKU: ' + product.sku + ' | Batch: ' + product.batch + ' | BC: ' + product.barcode + '</div>';
+        div.addEventListener('click', function() { selectProduct(product); });
+        container.appendChild(div);
+      });
       container.classList.add('show');
-      return;
-    }
-
-    filtered.slice(0, 20).forEach(function(product) {
-      var div = document.createElement('div');
-      div.className = 'search-result-item';
-      div.innerHTML = '<strong>' + product.product + '</strong><small>Batch: ' + product.batch + '</small>';
-      div.addEventListener('click', function() { selectProduct(product); });
-      container.appendChild(div);
     });
-    container.classList.add('show');
-  });
+  }, 150);
 }
 
 function handleSearchCycle(e) {
   const query = e.target.value;
   const container = document.getElementById('cycleSearchResults');
-  if (!query || query.length < 1) { container.classList.remove('show'); return; }
+  if (!query || query.length < 2) { container.classList.remove('show'); return; }
 
-  // Use local DB search (FAST! < 50ms)
-  dbSearchProducts(query).then(function(filtered) {
-    container.innerHTML = '';
-    if (filtered.length === 0) {
-      container.innerHTML = '<div class="search-result-item">Tidak ditemukan (total produk: ' + state.products.length + ')</div>';
+  // Debounce - wait 150ms before searching
+  clearTimeout(handleSearchCycle.timeout);
+  handleSearchCycle.timeout = setTimeout(function() {
+    // Use local DB search (FAST! < 50ms)
+    dbSearchProducts(query).then(function(filtered) {
+      container.innerHTML = '';
+      if (filtered.length === 0) {
+        container.innerHTML = '<div class="search-result-item" style="color:var(--gray-400);">Tidak ditemukan</div>';
+        container.classList.add('show');
+        return;
+      }
+
+      filtered.slice(0, 15).forEach(function(product) {
+        var div = document.createElement('div');
+        div.className = 'search-result-item';
+        div.innerHTML =
+          '<div class="search-item-name">' + product.product + '</div>' +
+          '<div style="font-size:11px;color:var(--gray-400);margin-top:2px;">SKU: ' + product.sku + ' | Batch: ' + product.batch + ' | BC: ' + product.barcode + '</div>';
+        div.addEventListener('click', function() { selectCycleProduct(product); });
+        container.appendChild(div);
+      });
       container.classList.add('show');
-      return;
-    }
-
-    filtered.slice(0, 20).forEach(function(product) {
-      var div = document.createElement('div');
-      div.className = 'search-result-item';
-      div.innerHTML = '<strong>' + product.product + '</strong><small>Batch: ' + product.batch + '</small>';
-      div.addEventListener('click', function() { selectCycleProduct(product); });
-      container.appendChild(div);
     });
-    container.classList.add('show');
-  });
+  }, 150);
 }
 
 function selectProduct(product) {
+  // Fill all fields with the SELECTED product data (by barcode)
   document.getElementById('inputBarcode').value = product.barcode;
   document.getElementById('inputSKU').value = product.sku;
   document.getElementById('inputProduct').value = product.product;
 
-  // Populate batch dropdown with all batches for this SKU
+  // Check how many batches exist for this SKU
   const sameSKUProducts = state.products.filter(p => p.sku === product.sku);
+  const sameBarcodeProducts = sameSKUProducts.filter(p => p.barcode === product.barcode);
 
-  // Check for mismatched product names (warning)
-  const uniqueProducts = [...new Set(sameSKUProducts.map(p => p.product))];
-  if (uniqueProducts.length > 1) {
-    showToast('Peringatan: SKU ini punya nama produk berbeda!', 'warning');
+  if (sameSKUProducts.length <= 1) {
+    // Only one batch for this SKU - no dropdown needed
+    document.getElementById('inputBatch').value = product.batch;
+    document.getElementById('batchDropdownPI').classList.remove('show');
+    document.getElementById('batchListPI').innerHTML = '';
+  } else {
+    // Multiple batches - show dropdown
+    populateBatchDropdown('batchDropdownPI', 'batchListPI', 'inputBatch', sameSKUProducts, product);
   }
-
-  populateBatchDropdown('batchDropdownPI', 'batchListPI', 'inputBatch', sameSKUProducts, product);
 
   document.getElementById('inputSKUBatch').value = product.sku + product.batch;
   document.getElementById('searchResults').classList.remove('show');
@@ -1303,20 +1377,23 @@ function selectProduct(product) {
 }
 
 function selectCycleProduct(product) {
+  // Fill all fields with the SELECTED product data (by barcode)
   document.getElementById('cycleBarcode').value = product.barcode;
   document.getElementById('cycleSKU').value = product.sku;
   document.getElementById('cycleProduct').value = product.product;
 
-  // Populate batch dropdown with all batches for this SKU
+  // Check how many batches exist for this SKU
   const sameSKUProducts = state.products.filter(p => p.sku === product.sku);
 
-  // Check for mismatched product names (warning)
-  const uniqueProducts = [...new Set(sameSKUProducts.map(p => p.product))];
-  if (uniqueProducts.length > 1) {
-    showToast('Peringatan: SKU ini punya nama produk berbeda!', 'warning');
+  if (sameSKUProducts.length <= 1) {
+    // Only one batch for this SKU - no dropdown needed
+    document.getElementById('cycleBatch').value = product.batch;
+    document.getElementById('batchDropdownCC').classList.remove('show');
+    document.getElementById('batchListCC').innerHTML = '';
+  } else {
+    // Multiple batches - show dropdown
+    populateBatchDropdown('batchDropdownCC', 'batchListCC', 'cycleBatch', sameSKUProducts, product);
   }
-
-  populateBatchDropdown('batchDropdownCC', 'batchListCC', 'cycleBatch', sameSKUProducts, product);
 
   document.getElementById('cycleSKUBatch').value = product.sku + product.batch;
   document.getElementById('cycleSearchResults').classList.remove('show');
