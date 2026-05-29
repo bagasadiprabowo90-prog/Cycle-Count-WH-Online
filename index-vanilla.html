@@ -108,7 +108,7 @@
     .search-item.selected{background:var(--primary-light)}
     .search-item-name{font-size:14px;font-weight:600;color:var(--gray-800)}
     .search-item-sku{font-size:12px;font-weight:700;color:var(--primary);margin-top:2px}
-    .search-item-batch{font-size:11px;color:var(--gray-400);margin-top:2px}
+    .search-item-batch{font-size:14px;font-weight:500;color:var(--gray-700)}
     .search-item small{display:block;font-size:11px;color:var(--gray-400);margin-top:2px}
 
     /* Buttons */
@@ -170,6 +170,7 @@
     .toast.success{background:linear-gradient(135deg,var(--success) 0%,#059669 100%)}
     .toast.error{background:linear-gradient(135deg,var(--danger) 0%,#dc2626 100%)}
     .toast.info{background:linear-gradient(135deg,var(--primary) 0%,var(--primary-dark) 100%)}
+    .toast.warning{background:linear-gradient(135deg,var(--warning) 0%,#d97706 100%)}
     @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(-20px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
 
     /* FAB */
@@ -413,22 +414,29 @@
     <div class="modal-title">➕ Tambah Batch Baru</div>
     <form id="createBatchForm">
       <div class="form-group">
-        <label class="form-label">Barcode</label>
-        <input type="text" class="form-input" id="newBatchBarcode" required>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">SKU</label>
-          <input type="text" class="form-input" id="newBatchSKU" required>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Nama Product</label>
-          <input type="text" class="form-input" id="newBatchProduct" required>
+        <label class="form-label">Cari Produk Existing (Opsional)</label>
+        <div class="search-wrap">
+          <input type="text" class="form-input search-input" id="searchExistingProduct" placeholder="Ketik nama/SKU untuk auto-fill..." autocomplete="off">
+          <div class="search-dropdown" id="existingProductSearchResults"></div>
         </div>
       </div>
       <div class="form-group">
-        <label class="form-label">Batch</label>
-        <input type="text" class="form-input" id="newBatchBatch" required>
+        <label class="form-label">Barcode <small style="color:var(--gray-400);font-weight:400">(opsional - akan dibuat otomatis)</small></label>
+        <input type="text" class="form-input" id="newBatchBarcode" placeholder="Kosongkan untuk generate otomatis">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">SKU <span style="color:var(--danger)">*</span></label>
+          <input type="text" class="form-input" id="newBatchSKU" required placeholder="Contoh: SKU-001">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Nama Product <span style="color:var(--danger)">*</span></label>
+          <input type="text" class="form-input" id="newBatchProduct" required placeholder="Nama produk">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Batch <span style="color:var(--danger)">*</span></label>
+        <input type="text" class="form-input" id="newBatchBatch" required placeholder="Nomor batch">
       </div>
       <button type="submit" class="btn btn-success">✅ Simpan Batch</button>
       <button type="button" class="btn btn-outline" onclick="closeModal('createBatchModal')">Batal</button>

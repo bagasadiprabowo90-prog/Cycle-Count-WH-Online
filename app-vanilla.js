@@ -313,34 +313,32 @@ async function loadAllData() {
   var lb = document.getElementById('loadingBar');
   if (lb) lb.classList.add('show');
 
-  // First, try to load from local DB (instant!)
+  // Load from local DB first (for instant display)
   const localProducts = await loadProductsFromLocal();
 
-  // If no local products, try to sync from cloud
-  if (localProducts.length === 0) {
-    console.log('[App] No local products, syncing from cloud...');
+  // Check last sync time - force sync if older than 5 minutes or local is empty
+  const lastSync = await getLastSyncTime();
+  const forceSync = localProducts.length === 0;
+  const timeSinceSync = lastSync ? Date.now() - lastSync : Infinity;
+  const shouldSync = forceSync || timeSinceSync > 5 * 60 * 1000; // 5 minutes
+
+  if (shouldSync) {
+    console.log('[App] Syncing from cloud...', { forceSync, timeSinceSync });
     await syncProductsToLocal();
   } else {
-    console.log('[App] Loaded', localProducts.length, 'products from local DB (instant!)');
+    console.log('[App] Using local data (last sync:', Math.round(timeSinceSync/1000) + 's ago)');
   }
 
-  // Check online status
-  if (navigator.onLine) {
-    // In background, sync with cloud for latest data
-    syncProductsToLocal().then(() => {
-      // Update search data
-      renderProductInList();
-      renderCycleCountList();
-    });
-  }
+  // Always update UI with local data
+  renderProductInList();
+  renderCycleCountList();
 
-  // Load data for selected date (using global date system)
+  // Load data for selected date
   loadDataForDate(globalSelectedDate || getGlobalDate());
 
   var lb2 = document.getElementById('loadingBar');
   if (lb2) lb2.classList.remove('show');
 
-  // Update sync info
   updateSyncStatus();
 }
 
@@ -1289,6 +1287,13 @@ function selectProduct(product) {
 
   // Populate batch dropdown with all batches for this SKU
   const sameSKUProducts = state.products.filter(p => p.sku === product.sku);
+
+  // Check for mismatched product names (warning)
+  const uniqueProducts = [...new Set(sameSKUProducts.map(p => p.product))];
+  if (uniqueProducts.length > 1) {
+    showToast('Peringatan: SKU ini punya nama produk berbeda!', 'warning');
+  }
+
   populateBatchDropdown('batchDropdownPI', 'batchListPI', 'inputBatch', sameSKUProducts, product);
 
   document.getElementById('inputSKUBatch').value = product.sku + product.batch;
@@ -1304,6 +1309,13 @@ function selectCycleProduct(product) {
 
   // Populate batch dropdown with all batches for this SKU
   const sameSKUProducts = state.products.filter(p => p.sku === product.sku);
+
+  // Check for mismatched product names (warning)
+  const uniqueProducts = [...new Set(sameSKUProducts.map(p => p.product))];
+  if (uniqueProducts.length > 1) {
+    showToast('Peringatan: SKU ini punya nama produk berbeda!', 'warning');
+  }
+
   populateBatchDropdown('batchDropdownCC', 'batchListCC', 'cycleBatch', sameSKUProducts, product);
 
   document.getElementById('cycleSKUBatch').value = product.sku + product.batch;
@@ -1361,25 +1373,39 @@ function populateBatchDropdown(dropdownId, datalistId, inputId, products, select
 function showBatchDropdown(dropdownId, products, inputId, selectedProduct) {
   const dropdown = document.getElementById(dropdownId);
 
-  let html = '';
+  // Use fragment for better performance
+  const fragment = document.createDocumentFragment();
+
   products.forEach(p => {
+    const div = document.createElement('div');
     const isSelected = p.batch === selectedProduct.batch;
-    html +=
-      '<div class="search-item' + (isSelected ? ' selected' : '') + '" onclick="selectBatch(\'' + dropdownId + '\', \'' + inputId + '\', \'' + p.batch + '\', \'' + p.barcode + '\', \'' + p.sku + '\')">' +
-        '<div class="search-item-batch">' + p.batch + '</div>' +
-      '</div>';
+    div.className = 'search-item' + (isSelected ? ' selected' : '');
+    div.style.cssText = 'padding:12px 16px;cursor:pointer;';
+    div.innerHTML =
+      '<div style="font-size:14px;font-weight:' + (isSelected ? '700' : '500') + ';color:var(--gray-800);">' + p.batch + '</div>' +
+      '<div style="font-size:11px;color:var(--gray-500);margin-top:2px;">' + p.product + '</div>';
+    div.addEventListener('click', (function(batch, barcode, sku) {
+      return function() {
+        selectBatch(dropdownId, inputId, batch, barcode, sku);
+      };
+    })(p.batch, p.barcode, p.sku));
+    fragment.appendChild(div);
   });
 
-  dropdown.innerHTML = html;
+  dropdown.innerHTML = '';
+  dropdown.appendChild(fragment);
   dropdown.classList.add('show');
 
   // Close on click outside
-  document.addEventListener('click', function closeDropdown(e) {
-    if (!dropdown.contains(e.target) && e.target.id !== inputId) {
-      dropdown.classList.remove('show');
-      document.removeEventListener('click', closeDropdown);
-    }
-  });
+  setTimeout(function() {
+    const closeHandler = function(e) {
+      if (!dropdown.contains(e.target) && e.target.id !== inputId) {
+        dropdown.classList.remove('show');
+        document.removeEventListener('click', closeHandler);
+      }
+    };
+    document.addEventListener('click', closeHandler);
+  }, 10);
 }
 
 // Select batch from dropdown
@@ -1387,14 +1413,30 @@ function selectBatch(dropdownId, inputId, batch, barcode, sku) {
   const input = document.getElementById(inputId);
   input.value = batch;
 
-  // Update barcode and skuBatch
-  const barcodeId = inputId === 'inputBatch' ? 'inputBarcode' : 'cycleBarcode';
-  const skubatchId = inputId === 'inputBatch' ? 'inputSKUBatch' : 'cycleSKUBatch';
-  document.getElementById(barcodeId).value = barcode;
-  document.getElementById(skubatchId).value = sku + batch;
+  // Find the product data for this batch
+  const product = state.products.find(p => p.barcode === barcode);
+  if (product) {
+    // Update barcode
+    const barcodeId = inputId === 'inputBatch' ? 'inputBarcode' : 'cycleBarcode';
+    document.getElementById(barcodeId).value = barcode;
+
+    // Update SKU+Batch
+    const skubatchId = inputId === 'inputBatch' ? 'inputSKUBatch' : 'cycleSKUBatch';
+    document.getElementById(skubatchId).value = sku + batch;
+
+    // Update product name - THIS IS THE KEY FIX
+    const productId = inputId === 'inputBatch' ? 'inputProduct' : 'cycleProduct';
+    document.getElementById(productId).value = product.product;
+  } else {
+    // Fallback: just update barcode and skuBatch
+    const barcodeId = inputId === 'inputBatch' ? 'inputBarcode' : 'cycleBarcode';
+    const skubatchId = inputId === 'inputBatch' ? 'inputSKUBatch' : 'cycleSKUBatch';
+    document.getElementById(barcodeId).value = barcode;
+    document.getElementById(skubatchId).value = sku + batch;
+  }
 
   document.getElementById(dropdownId).classList.remove('show');
-  showToast('Batch: ' + batch, 'info');
+  showToast('Batch: ' + batch + ' - ' + (product ? product.product : ''), 'info');
 }
 
 // ============================================
@@ -1403,22 +1445,111 @@ function selectBatch(dropdownId, inputId, batch, barcode, sku) {
 
 function showCreateBatchModal() {
   document.getElementById('createBatchModal').classList.add('show');
+  setupCreateBatchSearch();
+}
+
+// Setup search for existing products in create batch modal
+function setupCreateBatchSearch() {
+  const searchInput = document.getElementById('searchExistingProduct');
+  if (!searchInput) return;
+
+  // Remove old listener by cloning
+  const newInput = searchInput.cloneNode(true);
+  searchInput.parentNode.replaceChild(newInput, searchInput);
+
+  newInput.addEventListener('input', function(e) {
+    const query = e.target.value.trim().toLowerCase();
+    const container = document.getElementById('existingProductSearchResults');
+
+    if (query.length < 2) {
+      container.classList.remove('show');
+      return;
+    }
+
+    // Search products
+    const results = state.products.filter(p =>
+      p.product.toLowerCase().includes(query) ||
+      p.sku.toLowerCase().includes(query)
+    ).slice(0, 10);
+
+    if (results.length === 0) {
+      container.innerHTML = '<div class="search-item" style="color:var(--gray-400);">Produk tidak ditemukan</div>';
+    } else {
+      container.innerHTML = results.map(p =>
+        '<div class="search-item" onclick="fillExistingProduct(\'' + p.barcode + '\')" style="padding:12px 16px;">' +
+          '<div style="font-weight:600;color:var(--gray-800);">' + p.product + '</div>' +
+          '<small>SKU: ' + p.sku + ' | Batch: ' + p.batch + '</small>' +
+        '</div>'
+      ).join('');
+    }
+    container.classList.add('show');
+  });
+
+  // Close on blur
+  newInput.addEventListener('blur', function() {
+    setTimeout(() => container.classList.remove('show'), 200);
+  });
+}
+
+// Fill form with existing product data
+function fillExistingProduct(barcode) {
+  const product = state.products.find(p => p.barcode === barcode);
+  if (!product) return;
+
+  document.getElementById('newBatchBarcode').value = product.barcode;
+  document.getElementById('newBatchSKU').value = product.sku;
+  document.getElementById('newBatchProduct').value = product.product;
+  document.getElementById('newBatchBatch').value = '';
+
+  document.getElementById('existingProductSearchResults').classList.remove('show');
+  document.getElementById('searchExistingProduct').value = '';
+
+  showToast('Data produk diisi. Masukkan batch baru.', 'info');
 }
 
 async function handleCreateBatch(e) {
   e.preventDefault();
-  const newBatch = {
+
+  let newBatch = {
     barcode: document.getElementById('newBatchBarcode').value,
     sku: document.getElementById('newBatchSKU').value,
     product: document.getElementById('newBatchProduct').value,
     batch: document.getElementById('newBatchBatch').value
   };
+
+  // Validate required fields
+  if (!newBatch.sku || !newBatch.product || !newBatch.batch) {
+    showToast('SKU, Nama Produk, dan Batch wajib diisi', 'error');
+    return;
+  }
+
+  // Generate barcode if empty
+  if (!newBatch.barcode) {
+    newBatch.barcode = 'SKU' + newBatch.sku.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() + 'B' + newBatch.batch.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    document.getElementById('newBatchBarcode').value = newBatch.barcode;
+  }
+
+  // Show loading state
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  const originalText = submitBtn.innerHTML;
+  submitBtn.innerHTML = '⏳ Menyimpan...';
+  submitBtn.disabled = true;
+
   const result = await apiRequest('addNewBatch', { batch: newBatch });
+
+  // Reset button
+  submitBtn.innerHTML = originalText;
+  submitBtn.disabled = false;
+
   if (result.success) {
     showToast('Batch baru berhasil ditambahkan', 'success');
     closeModal('createBatchModal');
     document.getElementById('createBatchForm').reset();
-    loadAllData();
+
+    // Reload products from cloud (new batch added)
+    await syncProductsToLocal();
+    // Reload data for current date
+    loadDataForDate(globalSelectedDate || getGlobalDate());
   } else {
     showToast(result.message, 'error');
   }
@@ -1897,18 +2028,24 @@ function updateLastSyncTime() {
 async function syncProductsToLocal() {
   console.log('[DB] Syncing products to local DB...');
   try {
+    showToast('Sinkronisasi data...', 'info');
     const result = await apiRequest('getProducts');
     if (result.success && result.data) {
       await dbSaveProducts(result.data);
       state.products = result.data;
       await updateLastSyncTime();
       console.log('[DB] Products synced:', result.data.length);
-      showToast('Produk sinkronisasi (' + result.data.length + ' item)', 'success');
+      showToast('Sinkronisasi selesai (' + result.data.length + ' item)', 'success');
+
+      // Re-render lists with new data
+      renderProductInList();
+      renderCycleCountList();
       return true;
     }
     return false;
   } catch (error) {
     console.error('[DB] Sync error:', error);
+    showToast('Gagal sinkronisasi', 'error');
     return false;
   }
 }
