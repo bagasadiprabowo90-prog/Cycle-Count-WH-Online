@@ -1337,7 +1337,10 @@ function populateBatchDropdown(dropdownId, datalistId, inputId, products, select
   // Always show batch input
   input.value = selectedProduct.batch;
   input.readOnly = false;
-  dropdown.classList.remove('show');
+
+  // Set data for dropdown
+  input.dataset.dropdownData = JSON.stringify({ products: products, selectedProduct: selectedProduct });
+  input.dataset.dropdownId = dropdownId;
 
   if (products.length <= 1) {
     // Only one batch - just set the value, no need for dropdown
@@ -1351,33 +1354,28 @@ function populateBatchDropdown(dropdownId, datalistId, inputId, products, select
     datalist.appendChild(option);
   });
 
-  // Show dropdown on focus
-  input.addEventListener('focus', function() {
-    showBatchDropdown(dropdownId, products, inputId, selectedProduct);
-  });
-
-  // Handle selection via datalist
-  input.addEventListener('change', function() {
-    const newBatch = input.value;
-    const newProduct = products.find(p => p.batch === newBatch);
-    if (newProduct && newBatch !== selectedProduct.batch) {
-      // Update barcode with new batch's barcode
+  // Update product name when batch changes
+  input.oninput = function() {
+    const newProduct = products.find(p => p.batch === input.value);
+    if (newProduct) {
       document.getElementById(inputId === 'inputBatch' ? 'inputBarcode' : 'cycleBarcode').value = newProduct.barcode;
-      document.getElementById(inputId === 'inputBatch' ? 'inputSKUBatch' : 'cycleSKUBatch').value = newProduct.sku + newBatch;
-      // Update product name
+      document.getElementById(inputId === 'inputBatch' ? 'inputSKUBatch' : 'cycleSKUBatch').value = newProduct.sku + newProduct.batch;
       document.getElementById(inputId === 'inputBatch' ? 'inputProduct' : 'cycleProduct').value = newProduct.product;
     }
-  });
+  };
 
-  // Click on input to show dropdown immediately
-  input.addEventListener('click', function() {
+  // Show dropdown on click
+  input.onclick = function() {
     showBatchDropdown(dropdownId, products, inputId, selectedProduct);
-  });
+  };
 }
 
 // Show batch dropdown
 function showBatchDropdown(dropdownId, products, inputId, selectedProduct) {
   const dropdown = document.getElementById(dropdownId);
+
+  // Close all other dropdowns first
+  document.querySelectorAll('.search-dropdown').forEach(d => d.classList.remove('show'));
 
   // Use fragment for better performance
   const fragment = document.createDocumentFragment();
@@ -1390,59 +1388,34 @@ function showBatchDropdown(dropdownId, products, inputId, selectedProduct) {
     div.innerHTML =
       '<div style="font-size:14px;font-weight:' + (isSelected ? '700' : '500') + ';color:var(--gray-800);">' + p.batch + '</div>' +
       '<div style="font-size:11px;color:var(--gray-500);margin-top:2px;">' + p.product + '</div>';
-    div.addEventListener('click', (function(batch, barcode, sku) {
+    div.addEventListener('click', (function(batch, barcode, sku, prodName) {
       return function() {
-        selectBatch(dropdownId, inputId, batch, barcode, sku);
+        selectBatch(dropdownId, inputId, batch, barcode, sku, prodName);
       };
-    })(p.batch, p.barcode, p.sku));
+    })(p.batch, p.barcode, p.sku, p.product));
     fragment.appendChild(div);
   });
 
   dropdown.innerHTML = '';
   dropdown.appendChild(fragment);
   dropdown.classList.add('show');
-
-  // Close on click outside
-  setTimeout(function() {
-    const closeHandler = function(e) {
-      if (!dropdown.contains(e.target) && e.target.id !== inputId) {
-        dropdown.classList.remove('show');
-        document.removeEventListener('click', closeHandler);
-      }
-    };
-    document.addEventListener('click', closeHandler);
-  }, 10);
 }
 
 // Select batch from dropdown
-function selectBatch(dropdownId, inputId, batch, barcode, sku) {
+function selectBatch(dropdownId, inputId, batch, barcode, sku, prodName) {
   const input = document.getElementById(inputId);
   input.value = batch;
 
-  // Find the product data for this batch
-  const product = state.products.find(p => p.barcode === barcode);
-  if (product) {
-    // Update barcode
-    const barcodeId = inputId === 'inputBatch' ? 'inputBarcode' : 'cycleBarcode';
-    document.getElementById(barcodeId).value = barcode;
+  // Update all related fields
+  const barcodeId = inputId === 'inputBatch' ? 'inputBarcode' : 'cycleBarcode';
+  const skubatchId = inputId === 'inputBatch' ? 'inputSKUBatch' : 'cycleSKUBatch';
+  const productId = inputId === 'inputBatch' ? 'inputProduct' : 'cycleProduct';
 
-    // Update SKU+Batch
-    const skubatchId = inputId === 'inputBatch' ? 'inputSKUBatch' : 'cycleSKUBatch';
-    document.getElementById(skubatchId).value = sku + batch;
-
-    // Update product name - THIS IS THE KEY FIX
-    const productId = inputId === 'inputBatch' ? 'inputProduct' : 'cycleProduct';
-    document.getElementById(productId).value = product.product;
-  } else {
-    // Fallback: just update barcode and skuBatch
-    const barcodeId = inputId === 'inputBatch' ? 'inputBarcode' : 'cycleBarcode';
-    const skubatchId = inputId === 'inputBatch' ? 'inputSKUBatch' : 'cycleSKUBatch';
-    document.getElementById(barcodeId).value = barcode;
-    document.getElementById(skubatchId).value = sku + batch;
-  }
+  document.getElementById(barcodeId).value = barcode;
+  document.getElementById(skubatchId).value = sku + batch;
+  document.getElementById(productId).value = prodName;
 
   document.getElementById(dropdownId).classList.remove('show');
-  showToast('Batch: ' + batch + ' - ' + (product ? product.product : ''), 'info');
 }
 
 // ============================================
